@@ -346,5 +346,5 @@ def preprocess_all(dir, out_dir):
 
 
 if __name__ == "__main__":
-    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/lidc/',
-        '/home/daniel_nlp/Lung-Cancer-Detection-and-Classification/i3d/data/preprocessed/')
+    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data/lidc/',
+        '/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data/preprocessed/')
