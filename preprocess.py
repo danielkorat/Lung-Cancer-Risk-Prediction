@@ -299,15 +299,19 @@ def preprocess(scan):
     resampled_scan, spacing = resample(scan_hu, orig_scan, orig_scan_np, [1.5,1.5,1.5])
     print("Shape after resampling\t", resampled_scan.shape)
 
+    if resampled_scan.shape[0] < 200:
+        print(scan[-4:] + ': resampled Z dimension smaller than 200')
+        return -1
+
     lung_mask = segment_lung_mask(resampled_scan, True)
 
-    # plt.imshow(orig_scan_np[orig_scan_np.shape[0]//2], cmap=plt.cm.gray)
-    # plt.savefig('out_preprocess/in_' + patient + '.png', bbox_inches='tight')
+    plt.imshow(orig_scan_np[orig_scan_np.shape[0]//2], cmap=plt.cm.gray)
+    plt.savefig('out_preprocess/in_' + scan[-4:] + '.png', bbox_inches='tight')
 
     z_min, z_max, x_min, x_max, y_min, y_max = bbox2_3D(lung_mask)
     print('Lung bounding box:', (z_min, z_max), (x_min, x_max), (y_min, y_max))
 
-    context = 240
+    context = 200
     z_start = (z_max + z_min) // 2 - context // 2
     y_start = (y_max + y_min) // 2 - context // 2
     x_start = (x_max + x_min) // 2 - context // 2
@@ -315,17 +319,21 @@ def preprocess(scan):
 
     windowed_scan = apply_window(resampled_scan)
 
-    # sample = windowed_scan.shape[0] // 2
-    # plt.imshow(windowed_scan[sample], cmap=plt.cm.gray)
-    # plt.savefig('out_preprocess/norm_resampled_' + patient + '.png', bbox_inches='tight')
+    lung_bounds = windowed_scan[(z_max - z_min) // 2, x_min: x_max, y_min: y_max]
+    plt.imshow(lung_bounds, cmap=plt.cm.gray)
+    plt.savefig('out_preprocess/lung_bounds_' + scan[-4:] + '.png', bbox_inches='tight')
 
-    lung_region = windowed_scan[z_start : z_start + context, x_start : x_start + context, y_start : y_start + context]
+    # mid_slice = windowed_scan.shape[0] // 2
+    # plt.imshow(windowed_scan[mid_slice], cmap=plt.cm.gray)
+    # plt.savefig('out_preprocess/norm_resampled_' + scan[-4:] + '.png', bbox_inches='tight')
 
-    # plt.imshow(lung_region[sample - z_start])
-    # plt.savefig('out_preprocess/norm_out_' + patient + '.png', bbox_inches='tight')
+    lung_context = windowed_scan[z_start : z_start + context, x_start : x_start + context, y_start : y_start + context]
 
-    lung_rgb = np.stack((lung_region, lung_region, lung_region), axis=3)
-    # plt.imshow(lung_rgb[sample - z_start])
+    plt.imshow(lung_context[z_start + (context//2)], cmap=plt.cm.gray)
+    plt.savefig('out_preprocess/lung_context_' + scan[-4:] + '.png', bbox_inches='tight')
+
+    lung_rgb = np.stack((lung_context, lung_context, lung_context), axis=3)
+    # plt.imshow(lung_rgb[mid_slice - z_start])
     # plt.savefig('out_preprocess/rgb_norm_out_' + patient + '.png', bbox_inches='tight')       
 
     lung_rgb_norm = (lung_rgb * 2.0) - 1.0
@@ -338,10 +346,21 @@ def preprocess_all(dir, out_dir):
     scans = os.listdir(dir)
     scans.sort()
 
-    for scan in tqdm(scans):
-        preprocessed_scan = preprocess(dir + scan)
-        np.save(out_dir + scan, preprocessed_scan)
+    total = 0
+    insufficient_slices = 0
 
+    for scan in tqdm(scans):
+        total += 1
+        preprocessed_scan = preprocess(dir + scan)
+        if type(preprocessed_scan) is int:
+            if preprocessed_scan == -1:
+                insufficient_slices += 1
+        else:
+            np.save(out_dir + scan, preprocessed_scan)
+
+    print('Total scans: ' + str(total))
+    print('Scans with insufficient slices: ' + str(insufficient_slices))
+    # print('total scans: ' + str(total))
     print((time.time() - start) / len(scans), 'sec/image')
 
 
