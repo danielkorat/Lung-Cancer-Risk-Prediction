@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/daniel_nlp/Lung-Cancer-Detection-and-Classification/kinetics-i3d/data/checkpoints/inflated/model.ckpt"
+all_model_checkpoint_paths: "/home/daniel_nlp/Lung-Cancer-Detection-and-Classification/kinetics-i3d/data/checkpoints/inflated/model.ckpt"

@@ -1,30 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# ## Introduction
-# 
-# Working with these files can be a challenge, especially given their heterogeneous nature. Some preprocessing is required before they are ready for consumption by your CNN.
-# 
-# Fortunately, I participated in the LUNA16 competition as part of a university course on computer aided diagnosis, so I have some experience working with these files. At this moment we top the leaderboard there :)
-# 
-# **This tutorial aims to provide a comprehensive overview of useful steps to take before the data hits your ConvNet/other ML method.**
-# 
-# What we will cover:  
-# 
-# * **Loading the DICOM files**, and adding missing metadata  
-# * **Converting the pixel values to *Hounsfield Units (HU)***, and what tissue these unit values correspond to
-# * **Resampling** to an isomorphic resolution to remove variance in scanner resolution.
-# * **3D plotting**, visualization is very useful to see what we are doing.
-# * **Lung segmentation**
-# * **Normalization** that makes sense.
-# * **Zero centering** the scans.
-# 
-# 
-# ---
-# 
-# Before we start, let's import some packages and determine the available patients.
-
-# get_ipython().run_line_magic('matplotlib', 'inline')
 import time
 from tqdm import tqdm
 import numpy as np # linear algebra
@@ -37,6 +10,7 @@ import vtkplotter as vtk
 
 from skimage import measure, morphology
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from collections import defaultdict
 
 # # Loading the files
 # Dicom is the de-facto file standard in medical imaging. This is my first time working with it, but it seems to be fairly straight-forward.  
@@ -286,10 +260,14 @@ def zero_center(image):
 # 
 # **If this tutorial helped you at all, please upvote it and leave a comment :)**
 
-def preprocess(scan):
+def preprocess(scan, errors_map):
     print('scan:', scan)
     
     orig_scan = load_scan(scan)
+    num_slices = len(orig_scan)
+    if num_slices < 50:
+        errors_map['insufficient_slices'] += 1
+        raise ValueError(scan[-4:] + ': number of slices is less than 50')
     orig_scan_np = np.stack([s.pixel_array for s in orig_scan]).astype(np.int16)
 
     scan_hu = get_pixels_hu(orig_scan)
@@ -300,8 +278,8 @@ def preprocess(scan):
     print("Shape after resampling\t", resampled_scan.shape)
 
     if resampled_scan.shape[0] < 200:
-        print(scan[-4:] + ': resampled Z dimension smaller than 200')
-        return -1
+        errors_map['small_z'] += 1
+        raise ValueError(scan[-4:] + ': resampled Z dimension is less than 200')
 
     lung_mask = segment_lung_mask(resampled_scan, True)
 
@@ -315,6 +293,10 @@ def preprocess(scan):
     z_start = (z_max + z_min) // 2 - context // 2
     y_start = (y_max + y_min) // 2 - context // 2
     x_start = (x_max + x_min) // 2 - context // 2
+    if x_start < 0 or y_start < 0 or y_start < 0:
+        errors_map['bad_seg'] += 1
+        raise ValueError(scan[-4:] + ': bad segmentation')
+
     print('z:', (z_start, z_start + context), 'x:', (x_start, x_start + context), 'y:', (y_start, y_start + context))
 
     windowed_scan = apply_window(resampled_scan)
@@ -340,30 +322,36 @@ def preprocess(scan):
     print("Final shape\t", lung_rgb_norm.shape, '\n\n')
     return lung_rgb_norm
 
+def walk_dicom_dirs(base_in, base_out):
+    for root, dirs, files in os.walk(base_in):
+        path = root.split(os.sep)
+        print((len(path) - 1) * '---', os.path.basename(root))
+        if files and files[0].endswith('.dcm'):
+            yield root, base_out + os.path.relpath(root, base_in)
 
-def preprocess_all(dir, out_dir):
+def preprocess_all(input_dir):
     start = time.time()
-    scans = os.listdir(dir)
+    scans = os.listdir(input_dir)
     scans.sort()
+    errors_map = defaultdict(int)
+    base_out = input_dir.rstrip('/') + '_preprocessed/'
 
-    total = 0
-    insufficient_slices = 0
+    for scan_dir_path, out_path in tqdm(walk_dicom_dirs(input_dir, base_out)):
+        try:
+            preprocessed_scan = preprocess(scan_dir_path, errors_map)
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            np.save(out_path, preprocessed_scan)
+        except ValueError as e:
+            print(e)
 
-    for scan in tqdm(scans):
-        total += 1
-        preprocessed_scan = preprocess(dir + scan)
-        if type(preprocessed_scan) is int:
-            if preprocessed_scan == -1:
-                insufficient_slices += 1
-        else:
-            np.save(out_dir + scan, preprocessed_scan)
-
-    print('Total scans: ' + str(total))
-    print('Scans with insufficient slices: ' + str(insufficient_slices))
-    # print('total scans: ' + str(total))
+    print('Total scans: {}'.format(len(scans)))
+    print('Scans with insufficient slices: {}'.format(errors_map['insufficient_slices']))
+    print('Scans with bad segmentation: {}'.format(errors_map['bad_seg']))
+    print('Scans with small resampled z dimension: {}'.format(errors_map['small_z']))
     print((time.time() - start) / len(scans), 'sec/image')
 
 
 if __name__ == "__main__":
-    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data/lidc/',
-        '/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data/preprocessed/')
+    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data/a/')
+
+    # walk_dicom_dirs('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data/lidc/')

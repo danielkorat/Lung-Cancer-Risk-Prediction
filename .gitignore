@@ -143,3 +143,5 @@ dmypy.json
 i3d/data/
 visual_logs/
 models/
+
+data
