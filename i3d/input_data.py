@@ -75,7 +75,7 @@ def get_data(filename, num_frames_per_clip, sample_rate, s_index=-1):
         ret_arr.append(img_data)
     return ret_arr, s_index
 
-def read_clip_and_label(file_list, batch_size, start_pos=-1, crop_size=224, shuffle=True):
+def read_clip_and_label(file_list, batch_size, start_pos=-1, crop_size=198, num_frames=197, shuffle=True):
     lines = open(file_list, 'r').readlines()
     read_files = []
     rgb_data = []
@@ -106,9 +106,9 @@ def read_clip_and_label(file_list, batch_size, start_pos=-1, crop_size=224, shuf
         # tmp_rgb_data = [Image.fromarray(slc.astype(np.uint8)) for slc in np.load(cur_file)]
         # tmp_rgb_data = [slc for slc in np.load(cur_file).astype(np.float32)]
 
-        result = np.zeros((10, 224, 224, 3)).astype(np.float32)
+        result = np.zeros((num_frames, crop_size, crop_size, 3)).astype(np.float32)
         scan_arr = np.load(cur_file).astype(np.float32)
-        result[:10, :scan_arr.shape[1], :scan_arr.shape[2], :3] = scan_arr[:10, :224, :224, :3]
+        result[:num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = scan_arr[:num_frames, :crop_size, :crop_size, :3]
         # video_list = np.stack(padded_scans).astype(np.float32)
 
         if len(result) != 0:

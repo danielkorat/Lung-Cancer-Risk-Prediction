@@ -35,15 +35,15 @@ gpu_num = 1
 flags.DEFINE_float('learning_rate', 0.0001, 'Initial learning rate.')
 flags.DEFINE_integer('max_steps', 75, 'Number of steps to run trainer.')
 flags.DEFINE_integer('batch_size', 1, 'Batch size.')
-flags.DEFINE_integer('num_frame_per_clip', 10, 'Nummber of frames per clip')
+flags.DEFINE_integer('num_frame_per_clip', 140, 'Nummber of frames per clip')
 flags.DEFINE_integer('crop_size', 224, 'Crop_size')
 flags.DEFINE_integer('rgb_channels', 3, 'RGB_channels for input')
 flags.DEFINE_integer('num_classes', 2, 'The num of class')
-flags.DEFINE_string('data_dir', '/home/daniel_nlp/Lung-Cancer-Detection-and-Classification/i3d/data/', '')
+flags.DEFINE_string('data_dir', '/workdisk/Lung-Cancer-Risk-Prediction/i3d/data/', '')
 FLAGS = flags.FLAGS
 model_save_dir = 'models/rgb_scratch_10000_6_64_0.0001_decay'
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"#,1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 
 def run_training():
@@ -63,10 +63,10 @@ def run_training():
                         trainable=False
                         )
         rgb_images_placeholder, labels_placeholder, is_training = utils.placeholder_inputs(
-                        FLAGS.batch_size * gpu_num,
-                        FLAGS.num_frame_per_clip,
-                        FLAGS.crop_size,
-                        FLAGS.rgb_channels
+                        batch_size=FLAGS.batch_size * gpu_num,
+                        num_frame_per_clip=FLAGS.num_frame_per_clip,
+                        crop_size=FLAGS.crop_size,
+                        rgb_channels=FLAGS.rgb_channels
                         )
 
         learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
@@ -123,7 +123,9 @@ def run_training():
         start_time = time.time()
         rgb_train_images, train_labels = input_data.read_clip_and_label(
                       file_list=FLAGS.data_dir + 'train.list',
-                      batch_size=FLAGS.batch_size * gpu_num)
+                      batch_size=FLAGS.batch_size * gpu_num,
+                      crop_size=FLAGS.crop_size,
+                      num_frames=FLAGS.num_frame_per_clip)
         sess.run(train_op, feed_dict={
                       rgb_images_placeholder: rgb_train_images,
                       labels_placeholder: train_labels,
@@ -148,8 +150,10 @@ def run_training():
             print('----------------------')
             print('Validation Data Eval:')
             rgb_val_images, val_labels = input_data.read_clip_and_label(
-                            file_list='/home/daniel_nlp/Lung-Cancer-Detection-and-Classification/i3d/data/test.list',
-                            batch_size=FLAGS.batch_size * gpu_num)
+                            file_list=FLAGS.data_dir + 'test.list',
+                            batch_size=FLAGS.batch_size * gpu_num,
+                            crop_size=FLAGS.crop_size,
+                            num_frames=FLAGS.num_frame_per_clip)
             summary, acc = sess.run(
                             [merged, accuracy],
                             feed_dict={

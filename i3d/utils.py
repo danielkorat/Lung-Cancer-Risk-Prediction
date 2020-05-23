@@ -24,7 +24,7 @@ import math
 import numpy as np
 
 
-def placeholder_inputs(batch_size=16, num_frame_per_clip=16, crop_size=224, rgb_channels=3):
+def placeholder_inputs(batch_size=16, num_frame_per_clip=16, crop_size=199, rgb_channels=3):
     """Generate placeholder variables to represent the input tensors.
 
     These placeholders are used as inputs by the rest of the model building
@@ -68,7 +68,7 @@ def average_gradients(tower_grads):
     return average_grads
 
 
-def tower_loss( logit, labels):
+def tower_loss(logit, labels):
     print(labels)
     print(logit)
     print(logit.shape)

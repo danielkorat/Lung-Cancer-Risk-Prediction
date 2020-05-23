@@ -1,16 +1,16 @@
 import time
 from tqdm import tqdm
 import numpy as np # linear algebra
-import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import pydicom as dicom
 import os
 import scipy.ndimage
 import matplotlib.pyplot as plt
-import vtkplotter as vtk
 
 from skimage import measure, morphology
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+# from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from collections import defaultdict
+from sys import argv
+
 
 # # Loading the files
 # Dicom is the de-facto file standard in medical imaging. This is my first time working with it, but it seems to be fairly straight-forward.  
@@ -260,7 +260,7 @@ def zero_center(image):
 # 
 # **If this tutorial helped you at all, please upvote it and leave a comment :)**
 
-def preprocess(scan, errors_map):
+def preprocess(scan, errors_map, context):
     print('scan:', scan)
     
     orig_scan = load_scan(scan)
@@ -283,50 +283,54 @@ def preprocess(scan, errors_map):
 
     lung_mask = segment_lung_mask(resampled_scan, True)
 
-    plt.imshow(orig_scan_np[orig_scan_np.shape[0]//2], cmap=plt.cm.gray)
-    plt.savefig('out_preprocess/in_' + scan[-4:] + '.png', bbox_inches='tight')
+    # plt.imshow(orig_scan_np[orig_scan_np.shape[0]//2], cmap=plt.cm.gray)
+    # plt.savefig('out_preprocess/in_' + scan[-4:] + '.png', bbox_inches='tight')
 
     z_min, z_max, x_min, x_max, y_min, y_max = bbox2_3D(lung_mask)
-    print('Lung bounding box:', (z_min, z_max), (x_min, x_max), (y_min, y_max))
+    print('Lung bounding box (min,max):', (z_min, z_max), (x_min, x_max), (y_min, y_max))
 
-    context = 200
     z_start = (z_max + z_min) // 2 - context // 2
+    z_end = z_start + context
     y_start = (y_max + y_min) // 2 - context // 2
+    y_end = y_start + context
     x_start = (x_max + x_min) // 2 - context // 2
+    x_end = x_start + context
+
+    print('starts,end:', (z_start, z_end), (x_start, x_end), (y_start, y_end))
+
     if x_start < 0 or y_start < 0 or y_start < 0:
         errors_map['bad_seg'] += 1
         raise ValueError(scan[-4:] + ': bad segmentation')
 
-    print('z:', (z_start, z_start + context), 'x:', (x_start, x_start + context), 'y:', (y_start, y_start + context))
-
     windowed_scan = apply_window(resampled_scan)
 
-    lung_bounds = windowed_scan[(z_max - z_min) // 2, x_min: x_max, y_min: y_max]
-    plt.imshow(lung_bounds, cmap=plt.cm.gray)
-    plt.savefig('out_preprocess/lung_bounds_' + scan[-4:] + '.png', bbox_inches='tight')
+    # lung_bounds = windowed_scan[(z_max - z_min) // 2, x_min: x_max, y_min: y_max]
+    # plt.imshow(lung_bounds, cmap=plt.cm.gray)
+    # plt.savefig('out_preprocess/lung_bounds_' + scan[-4:] + '.png', bbox_inches='tight')
 
-    # mid_slice = windowed_scan.shape[0] // 2
+    mid_slice = windowed_scan.shape[0] // 2
     # plt.imshow(windowed_scan[mid_slice], cmap=plt.cm.gray)
     # plt.savefig('out_preprocess/norm_resampled_' + scan[-4:] + '.png', bbox_inches='tight')
 
-    lung_context = windowed_scan[z_start : z_start + context, x_start : x_start + context, y_start : y_start + context]
+    lung_context = windowed_scan[max(0, z_start) : z_end, max(0, x_start) : x_end, max(0, y_start) : y_end]
 
-    plt.imshow(lung_context[z_start + (context//2)], cmap=plt.cm.gray)
-    plt.savefig('out_preprocess/lung_context_' + scan[-4:] + '.png', bbox_inches='tight')
+    # plt.imshow(lung_context[z_start + (context//2)], cmap=plt.cm.gray)
+    # plt.savefig('out_preprocess/lung_context_' + scan[-4:] + '.png', bbox_inches='tight')
 
-    lung_rgb = np.stack((lung_context, lung_context, lung_context), axis=3)
-    # plt.imshow(lung_rgb[mid_slice - z_start])
-    # plt.savefig('out_preprocess/rgb_norm_out_' + patient + '.png', bbox_inches='tight')       
+    lung_rgb = np.stack((lung_context, lung_context, lung_context), axis=3)      
+    lung_rgb_sample = lung_rgb[lung_rgb.shape[0]//2]
 
     lung_rgb_norm = (lung_rgb * 2.0) - 1.0
     print("Final shape\t", lung_rgb_norm.shape, '\n\n')
-    return lung_rgb_norm
 
-def walk_dicom_dirs(base_in, base_out):
+    return lung_rgb_norm, lung_rgb_sample
+
+def walk_dicom_dirs(base_in, base_out, print_dirs=True):
     for root, dirs, files in os.walk(base_in):
         path = root.split(os.sep)
-        print((len(path) - 1) * '---', os.path.basename(root))
-        if files and files[0].endswith('.dcm'):
+        if print_dirs:
+            print((len(path) - 1) * '---', os.path.basename(root))
+        if len(files) >= 50 and files[0].endswith('.dcm'):
             yield root, base_out + os.path.relpath(root, base_in)
 
 def preprocess_all(input_dir):
@@ -335,23 +339,32 @@ def preprocess_all(input_dir):
     scans.sort()
     errors_map = defaultdict(int)
     base_out = input_dir.rstrip('/') + '_preprocessed/'
+    context = 200
 
-    for scan_dir_path, out_path in tqdm(walk_dicom_dirs(input_dir, base_out)):
+    scans_num = len(list(walk_dicom_dirs(input_dir, base_out, False)))
+    for scan_dir_path, out_path in tqdm(walk_dicom_dirs(input_dir, base_out), total=scans_num):
         try:
-            preprocessed_scan = preprocess(scan_dir_path, errors_map)
+            preprocessed_scan, scan_rgb_sample = preprocess(scan_dir_path, errors_map, context)
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
-            np.save(out_path, preprocessed_scan)
-        except ValueError as e:
-            print(e)
 
-    print('Total scans: {}'.format(len(scans)))
+            plt.imshow(scan_rgb_sample)
+            plt.savefig(out_path + '.png', bbox_inches='tight') 
+
+            np.save(out_path, preprocessed_scan)
+
+            print('\n++++++++++++++++++++++++\nDiagnostics:')
+            print(errors_map)
+
+        except ValueError as e:
+            print('!!!!!!!!!\nERROR!!!!!!!!\n!!!!!!!!!')
+            print(e, '\n')
+
+    print('Total scans: {}'.format(scans_num))
     print('Scans with insufficient slices: {}'.format(errors_map['insufficient_slices']))
     print('Scans with bad segmentation: {}'.format(errors_map['bad_seg']))
     print('Scans with small resampled z dimension: {}'.format(errors_map['small_z']))
-    print((time.time() - start) / len(scans), 'sec/image')
-
+    print((time.time() - start) / scans_num, 'sec/image')
 
 if __name__ == "__main__":
-    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data/a/')
-
-    # walk_dicom_dirs('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data/lidc/')
+    # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data')
+    preprocess_all(argv[1])

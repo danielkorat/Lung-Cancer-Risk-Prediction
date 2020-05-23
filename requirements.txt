@@ -1,0 +1,8 @@
+tensorflow-gpu==1.14.0
+tensorflow-probability==0.7.0
+dm-sonnet==1.34
+tqdm
+scipy
+pydicom
+scikit-image
+matplotlib
