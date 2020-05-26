@@ -140,7 +140,7 @@ dmypy.json
 *.npy
 *.meta
 
-i3d/data/
+i3d/data/checkpoints
 visual_logs/
 models/
 

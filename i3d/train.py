@@ -31,7 +31,7 @@ from tensorflow.python import pywrap_tensorflow
 
 # Basic model parameters as external flags.
 flags = tf.app.flags
-gpu_num = 1
+gpu_num = 3
 flags.DEFINE_float('learning_rate', 0.0001, 'Initial learning rate.')
 flags.DEFINE_integer('max_steps', 75, 'Number of steps to run trainer.')
 flags.DEFINE_integer('batch_size', 1, 'Batch size.')
@@ -43,7 +43,7 @@ flags.DEFINE_string('data_dir', '/workdisk/Lung-Cancer-Risk-Prediction/i3d/data/
 FLAGS = flags.FLAGS
 model_save_dir = 'models/rgb_scratch_10000_6_64_0.0001_decay'
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5"
 
 
 def run_training():
@@ -116,8 +116,8 @@ def run_training():
     rgb_saver.restore(sess, pretrained_path)
     print("load complete!")
 
-    train_writer = tf.summary.FileWriter('visual_logs/train_rgb_scratch_10000_6_64_0.0001_decay', sess.graph)
-    test_writer = tf.summary.FileWriter('visual_logs/test_rgb_scratch_10000_6_64_0.0001_decay', sess.graph)
+    train_writer = tf.compat.v1.summary.FileWriter('visual_logs/train_rgb_scratch_10000_6_64_0.0001_decay', sess.graph)
+    test_writer = tf.compat.v1.summary.FileWriter('visual_logs/test_rgb_scratch_10000_6_64_0.0001_decay', sess.graph)
 
     for step in xrange(FLAGS.max_steps):
         start_time = time.time()

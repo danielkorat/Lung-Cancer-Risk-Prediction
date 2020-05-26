@@ -10,7 +10,7 @@ from skimage import measure, morphology
 # from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from collections import defaultdict
 from sys import argv
-
+from random import shuffle
 
 # # Loading the files
 # Dicom is the de-facto file standard in medical imaging. This is my first time working with it, but it seems to be fairly straight-forward.  
@@ -365,6 +365,41 @@ def preprocess_all(input_dir):
     print('Scans with small resampled z dimension: {}'.format(errors_map['small_z']))
     print((time.time() - start) / scans_num, 'sec/image')
 
+def create_train_test_list(positives_dir, negatives_dir, lists_dir, print_dirs=False):
+    positive_paths = []
+    negative_paths = []
+    for preprocessed_dir, path_list, label in (positives_dir, positive_paths, '1'), (negatives_dir, negative_paths, '0'):
+        for root, dirs, files in os.walk(preprocessed_dir):
+            path = root.split(os.sep)
+            if print_dirs:
+                print((len(path) - 1) * '---', os.path.basename(root))
+            for f in files:
+                if f.endswith('.npy'):
+                    path_list.append((root + '/' + f, label))
+
+    train_list = []
+    test_list = []
+    shuffle(positive_paths)
+    split_pos = round(0.75 * len(positive_paths))
+    shuffle(negative_paths)
+    split_neg = round(0.75 * len(negative_paths))
+    train_list = positive_paths[:split_pos] + negative_paths[:split_neg]
+    test_list = positive_paths[split_pos:] + negative_paths[split_neg:]
+    shuffle(train_list)
+    shuffle(test_list)
+
+    with open(lists_dir + '/test.list', 'w') as test_f:
+        for path, label in test_list:
+            test_f.write(path + ' ' + label + '\n')
+
+    with open(lists_dir + '/train.list', 'w') as train_f:
+        for path, label in train_list:
+            train_f.write(path + ' ' + label + '\n')
+
+
 if __name__ == "__main__":
     # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data')
-    preprocess_all(argv[1])
+    # preprocess_all(argv[1])
+    create_train_test_list('/workdisk/Lung-Cancer-Risk-Prediction/datasets/NLST_preprocessed/conflc=confirmed',
+        '/workdisk/Lung-Cancer-Risk-Prediction/datasets/NLST_preprocessed/conflc=confirmed_no_cancer',
+        '/workdisk/Lung-Cancer-Risk-Prediction/i3d/data')
