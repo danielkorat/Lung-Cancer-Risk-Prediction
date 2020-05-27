@@ -28,6 +28,7 @@ import numpy as np
 from i3d import InceptionI3d
 import utils
 from tensorflow.python import pywrap_tensorflow
+from pathlib import Path
 
 # Basic model parameters as external flags.
 flags = tf.app.flags
@@ -39,7 +40,9 @@ flags.DEFINE_integer('num_frame_per_clip', 140, 'Nummber of frames per clip')
 flags.DEFINE_integer('crop_size', 224, 'Crop_size')
 flags.DEFINE_integer('rgb_channels', 3, 'RGB_channels for input')
 flags.DEFINE_integer('num_classes', 2, 'The num of class')
-flags.DEFINE_string('data_dir', '/workdisk/Lung-Cancer-Risk-Prediction/i3d/data/', '')
+flags.DEFINE_string('data_dir', str(Path.home()) + '/Lung-Cancer-Risk-Prediction/i3d/data/', '')
+flags.DEFINE_bool('debug', True, '')
+
 FLAGS = flags.FLAGS
 model_save_dir = 'models/rgb_scratch_10000_6_64_0.0001_decay'
 
@@ -122,7 +125,8 @@ def run_training():
     for step in xrange(FLAGS.max_steps):
         start_time = time.time()
         rgb_train_images, train_labels = input_data.read_clip_and_label(
-                      file_list=FLAGS.data_dir + 'train.list',
+                      base_dir=os.path.dirname(__file__),
+                      file_list=FLAGS.data_dir + ('debug_' if FLAGS.debug else '') + 'train.list',
                       batch_size=FLAGS.batch_size * gpu_num,
                       crop_size=FLAGS.crop_size,
                       num_frames=FLAGS.num_frame_per_clip)
@@ -150,7 +154,8 @@ def run_training():
             print('----------------------')
             print('Validation Data Eval:')
             rgb_val_images, val_labels = input_data.read_clip_and_label(
-                            file_list=FLAGS.data_dir + 'test.list',
+                            base_dir=os.path.dirname(__file__),
+                            file_list=FLAGS.data_dir + ('debug_' if FLAGS.debug else '') + 'test.list',
                             batch_size=FLAGS.batch_size * gpu_num,
                             crop_size=FLAGS.crop_size,
                             num_frames=FLAGS.num_frame_per_clip)
