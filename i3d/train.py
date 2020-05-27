@@ -31,9 +31,9 @@ from tensorflow.python import pywrap_tensorflow
 
 # Basic model parameters as external flags.
 flags = tf.app.flags
-gpu_num = 3
+gpu_num = 1
 flags.DEFINE_float('learning_rate', 0.0001, 'Initial learning rate.')
-flags.DEFINE_integer('max_steps', 75, 'Number of steps to run trainer.')
+flags.DEFINE_integer('max_steps', 180, 'Number of steps to run trainer.')
 flags.DEFINE_integer('batch_size', 1, 'Batch size.')
 flags.DEFINE_integer('num_frame_per_clip', 140, 'Nummber of frames per clip')
 flags.DEFINE_integer('crop_size', 224, 'Crop_size')
