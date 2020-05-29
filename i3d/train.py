@@ -34,13 +34,14 @@ from pathlib import Path
 flags = tf.app.flags
 gpu_num = 1
 flags.DEFINE_float('learning_rate', 0.0001, 'Initial learning rate.')
-flags.DEFINE_integer('max_steps', 180, 'Number of steps to run trainer.')
-flags.DEFINE_integer('batch_size', 1, 'Batch size.')
-flags.DEFINE_integer('num_frame_per_clip', 140, 'Nummber of frames per clip')
-flags.DEFINE_integer('crop_size', 224, 'Crop_size')
 flags.DEFINE_integer('rgb_channels', 3, 'RGB_channels for input')
 flags.DEFINE_integer('num_classes', 2, 'The num of class')
 flags.DEFINE_string('data_dir', str(Path.home()) + '/Lung-Cancer-Risk-Prediction/i3d/data/', '')
+
+flags.DEFINE_integer('crop_size', 224, 'Crop_size')
+flags.DEFINE_integer('batch_size', 3, 'Batch size.')
+flags.DEFINE_integer('num_frame_per_clip', 140, 'Nummber of frames per clip')
+flags.DEFINE_integer('max_steps', 10, 'Number of steps to run trainer.')
 flags.DEFINE_bool('debug', True, '')
 
 FLAGS = flags.FLAGS
@@ -59,12 +60,12 @@ def run_training():
     pretrained_path = FLAGS.data_dir + 'checkpoints/inflated/model.ckpt'
 
     with tf.Graph().as_default():
-        global_step = tf.get_variable(
-                        'global_step',
-                        [],
-                        initializer=tf.constant_initializer(0),
-                        trainable=False
-                        )
+        # global_step = tf.get_variable(
+        #                 'global_step',
+        #                 [],
+        #                 initializer=tf.constant_initializer(0),
+        #                 trainable=False
+        #                 )
         rgb_images_placeholder, labels_placeholder, is_training = utils.placeholder_inputs(
                         batch_size=FLAGS.batch_size * gpu_num,
                         num_frame_per_clip=FLAGS.num_frame_per_clip,
@@ -72,32 +73,29 @@ def run_training():
                         rgb_channels=FLAGS.rgb_channels
                         )
 
-        learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
-        opt_rgb = tf.train.AdamOptimizer(learning_rate)
+        # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
+        # opt_rgb = tf.train.AdamOptimizer(learning_rate)
         #opt_stable = tf.train.MomentumOptimizer(learning_rate, 0.9)
         with tf.variable_scope('RGB'):
             rgb_logit, _ = InceptionI3d(
-                                    num_classes=FLAGS.num_classes,
-                                    spatial_squeeze=True,
-                                    final_endpoint='Logits'
+                                    num_classes=2,
                                     )(rgb_images_placeholder, is_training)
-        rgb_loss = utils.tower_loss(
-                                rgb_logit,
-                                labels_placeholder
-                                )
-        accuracy = utils.tower_acc(rgb_logit, labels_placeholder)
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
-            rgb_grads = opt_rgb.compute_gradients(rgb_loss)
-            apply_gradient_rgb = opt_rgb.apply_gradients(rgb_grads, global_step=global_step)
-            train_op = tf.group(apply_gradient_rgb)
-            null_op = tf.no_op()
+        # rgb_loss = utils.tower_loss(
+        #                         rgb_logit,
+        #                         labels_placeholder
+        #                         )
+        # accuracy = utils.tower_acc(rgb_logit, labels_placeholder)
+        # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        # with tf.control_dependencies(update_ops):
+        #     rgb_grads = opt_rgb.compute_gradients(rgb_loss)
+        #     apply_gradient_rgb = opt_rgb.apply_gradients(rgb_grads, global_step=global_step)
+        #     train_op = tf.group(apply_gradient_rgb)
+        #     null_op = tf.no_op()
 
         # Create a saver for loading trained checkpoints.
         rgb_variable_map = {}
         for variable in tf.global_variables():
             if variable.name.split('/')[0] == 'RGB' and 'Adam' not in variable.name.split('/')[-1] and variable.name.split('/')[2] != 'Logits':
-                #rgb_variable_map[variable.name.replace(':0', '')[len('RGB/inception_i3d/'):]] = variable
                 rgb_variable_map[variable.name.replace(':0', '')] = variable
         rgb_saver = tf.train.Saver(var_list=rgb_variable_map, reshape=True)
 
