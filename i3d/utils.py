@@ -24,10 +24,10 @@ import math
 import numpy as np
 
 
-def batch(iterable, n=1):
-    l = len(iterable)
-    for i, ndx in enumerate(range(0, l, n)):
-        yield i, iterable[ndx: min(ndx + n, l)]
+def batch(iterable, batch_size=1):
+    iter_len = len(iterable)
+    for i in range(0, iter_len, batch_size):
+        yield iterable[i: min(i + batch_size, iter_len)]
 
 def load_data_list(path):
     coupled_data = []

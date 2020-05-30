@@ -66,10 +66,10 @@ def main(args):
             shuffle(train_list)
 
             # Run training for 1 epoch
-            model.train_loop(train_list, args.batch_size)
+            model.train_loop(train_list)
 
             # Save Weights after each epoch
-            print("Saving Weights")
+            # print("Saving Weights")
             # model_saver.save(sess, "{}/trained_model_{}.ckpt".format(model_path, epoch))
 
             # Start validation phase at end of each epoch
@@ -82,6 +82,7 @@ class I3dForCTVolumes:
         self.data_dir = data_dir
         self.crop_size = crop_size
         self.num_frames = num_frames
+        self.batch_size = batch_size
 
         with tf.Graph().as_default():
             # Learning Rate
@@ -94,7 +95,7 @@ class I3dForCTVolumes:
 
             # Placeholders
             self.images_placeholder, self.labels_placeholder, self.is_training_placeholder = utils.placeholder_inputs(
-                    batch_size=batch_size,
+                    batch_size=self.batch_size,
                     num_frame_per_clip=self.num_frames,
                     crop_size=self.crop_size,
                     rgb_channels=3
@@ -107,22 +108,16 @@ class I3dForCTVolumes:
             # Init I3D model
             with tf.device('/device:' + device + ':0'):
                 with tf.variable_scope('RGB'):
-                    rgb_logit, _ = InceptionI3d(num_classes=2)(self.images_placeholder, self.is_training_placeholder)
+                    self.logits, _ = InceptionI3d(num_classes=2)(self.images_placeholder, self.is_training_placeholder)
 
-                rgb_loss = utils.tower_loss(
-                                rgb_logit,
-                                self.labels_placeholder
-                                )
-                accuracy = utils.tower_acc(rgb_logit, self.labels_placeholder)
+                self.loss = utils.tower_loss(self.logits, self.labels_placeholder)
+                self.accuracy = utils.tower_acc(self.logits, self.labels_placeholder)
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 with tf.control_dependencies(update_ops):
-                    rgb_grads = opt_rgb.compute_gradients(rgb_loss)
+                    rgb_grads = opt_rgb.compute_gradients(self.loss)
                     apply_gradient_rgb = opt_rgb.apply_gradients(rgb_grads, global_step=global_step)
                     self.train_op = tf.group(apply_gradient_rgb)
                     null_op = tf.no_op()
-
-            self.accuracy = accuracy
-            self.loss = rgb_loss
 
             # Create a saver for loading pretrained checkpoints.
             pretrained_variable_map = {}
@@ -137,8 +132,8 @@ class I3dForCTVolumes:
             self.sess = tf.Session(config=run_config)
             self.sess.run(init)
 
-    def train_loop(self, data_list, batch_size=1):
-        for i, list_batch in utils.batch(data_list, batch_size):
+    def train_loop(self, data_list):
+        for i, list_batch in enumerate(utils.batch(data_list, self.batch_size)):
             print('========== STEP', i + 1)
             images_batch, labels_batch = self.process_coupled_data(list_batch)
 
@@ -153,9 +148,13 @@ class I3dForCTVolumes:
                 print(" loss: " + "{:.5f}".format(loss)) 
 
     def val_loop(self, val_images, val_labels):
-        feed_dict = self.coupled_data_to_dict(val_images, val_labels, is_training=False)
-        acc = self.sess.run([self.accuracy], feed_dict=feed_dict)
-        print("accuracy: " + "{:.5f}".format(acc))
+        acc_list = []
+        for coupled_batch in utils.batch(zip(val_images, val_labels), self.batch_size):
+            feed_dict = self.coupled_data_to_dict(val_images, val_labels, is_training=False)
+            acc = self.sess.run([self.accuracy], feed_dict=feed_dict)
+            acc_list.append(acc)
+        mean_acc = np.mean(acc_list)
+        print("accuracy: " + "{:.5f}".format(mean_acc))
 
     def coupled_data_to_dict(self, train_images, train_labels, is_training):
         return {
@@ -201,7 +200,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--inference_mode', default=False, type=bool, help='whether to run inference only')
 
-    parser.add_argument('--batch_size', default=2, type=int, help='the training batch size')
+    parser.add_argument('--batch_size', default=3, type=int, help='the training batch size')
 
     parser.add_argument('--num_examples', default=50, type=int, help='the number of examples to run inference')
 
