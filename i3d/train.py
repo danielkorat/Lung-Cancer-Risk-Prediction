@@ -80,17 +80,17 @@ def run_training():
             rgb_logit, _ = InceptionI3d(
                                     num_classes=2,
                                     )(rgb_images_placeholder, is_training)
-        # rgb_loss = utils.tower_loss(
-        #                         rgb_logit,
-        #                         labels_placeholder
-        #                         )
-        # accuracy = utils.tower_acc(rgb_logit, labels_placeholder)
-        # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        # with tf.control_dependencies(update_ops):
-        #     rgb_grads = opt_rgb.compute_gradients(rgb_loss)
-        #     apply_gradient_rgb = opt_rgb.apply_gradients(rgb_grads, global_step=global_step)
-        #     train_op = tf.group(apply_gradient_rgb)
-        #     null_op = tf.no_op()
+        rgb_loss = utils.tower_loss(
+                                rgb_logit,
+                                labels_placeholder
+                                )
+        accuracy = utils.tower_acc(rgb_logit, labels_placeholder)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            rgb_grads = opt_rgb.compute_gradients(rgb_loss)
+            apply_gradient_rgb = opt_rgb.apply_gradients(rgb_grads, global_step=global_step)
+            train_op = tf.group(apply_gradient_rgb)
+            null_op = tf.no_op()
 
         # Create a saver for loading trained checkpoints.
         rgb_variable_map = {}
@@ -123,7 +123,7 @@ def run_training():
     for step in xrange(FLAGS.max_steps):
         start_time = time.time()
         rgb_train_images, train_labels = input_data.read_clip_and_label(
-                      base_dir=os.path.dirname(__file__),
+                      base_dir=str(os.path.dirname(__file__)) + '/data',
                       file_list=FLAGS.data_dir + ('debug_' if FLAGS.debug else '') + 'train.list',
                       batch_size=FLAGS.batch_size * gpu_num,
                       crop_size=FLAGS.crop_size,
@@ -152,7 +152,7 @@ def run_training():
             print('----------------------')
             print('Validation Data Eval:')
             rgb_val_images, val_labels = input_data.read_clip_and_label(
-                            base_dir=os.path.dirname(__file__),
+                            base_dir=str(os.path.dirname(__file__)) + '/data',
                             file_list=FLAGS.data_dir + ('debug_' if FLAGS.debug else '') + 'test.list',
                             batch_size=FLAGS.batch_size * gpu_num,
                             crop_size=FLAGS.crop_size,

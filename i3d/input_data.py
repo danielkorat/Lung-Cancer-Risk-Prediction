@@ -111,60 +111,60 @@ def read_scan_and_label(base_dir, file_list, batch_size, start_pos, crop_size=19
 
     return np_arr_rgb_data, np_arr_label #, next_batch_start, read_files, valid_len
 
-# def read_clip_and_label_old(base_dir, file_list, batch_size, start_pos=-1, crop_size=198, num_frames=197, shuffle=True):
-#     lines = [base_dir + '/' + path for path in open(file_list, 'r').readlines()]
-#     read_files = []
-#     rgb_data = []
-#     label = []
-#     batch_index = 0
-#     next_batch_start = -1
-#     lines = list(lines)
-#     # lines = filename
-#     # Forcing shuffle, if start_pos is not specified
-#     if start_pos < 0:
-#         shuffle = True
-#     if shuffle:
-#         video_indices = list(range(len(lines)))
-#         random.seed(time.time())
-#         random.shuffle(video_indices)
-#     else:
-#         # Process videos sequentially
-#         video_indices = range(start_pos, len(lines))
-#     for index in video_indices:
-#         if batch_index >= batch_size:
-#             next_batch_start = index
-#             break
-#         line = lines[index].strip('\n').split()
-#         cur_file = line[0]
-#         tmp_label = line[1]
-#         if not shuffle:
-#             print("Loading a video clip from {}...".format(cur_file))
-#         # tmp_rgb_data = [Image.fromarray(slc.astype(np.uint8)) for slc in np.load(cur_file)]
-#         # tmp_rgb_data = [slc for slc in np.load(cur_file).astype(np.float32)]
+def read_clip_and_label(base_dir, file_list, batch_size, start_pos=-1, crop_size=198, num_frames=197, shuffle=True):
+    lines = [base_dir + '/' + path for path in open(file_list, 'r').readlines()]
+    read_files = []
+    rgb_data = []
+    label = []
+    batch_index = 0
+    next_batch_start = -1
+    lines = list(lines)
+    # lines = filename
+    # Forcing shuffle, if start_pos is not specified
+    if start_pos < 0:
+        shuffle = True
+    if shuffle:
+        video_indices = list(range(len(lines)))
+        random.seed(time.time())
+        random.shuffle(video_indices)
+    else:
+        # Process videos sequentially
+        video_indices = range(start_pos, len(lines))
+    for index in video_indices:
+        if batch_index >= batch_size:
+            next_batch_start = index
+            break
+        line = lines[index].strip('\n').split()
+        cur_file = line[0]
+        tmp_label = line[1]
+        if not shuffle:
+            print("Loading a video clip from {}...".format(cur_file))
+        # tmp_rgb_data = [Image.fromarray(slc.astype(np.uint8)) for slc in np.load(cur_file)]
+        # tmp_rgb_data = [slc for slc in np.load(cur_file).astype(np.float32)]
 
-#         result = np.zeros((num_frames, crop_size, crop_size, 3)).astype(np.float32)
-#         scan_arr = np.load(cur_file).astype(np.float32)
-#         result[:num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = scan_arr[:num_frames, :crop_size, :crop_size, :3]
-#         # video_list = np.stack(padded_scans).astype(np.float32)
+        result = np.zeros((num_frames, crop_size, crop_size, 3)).astype(np.float32)
+        scan_arr = np.load(cur_file).astype(np.float32)
+        result[:num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = scan_arr[:num_frames, :crop_size, :crop_size, :3]
+        # video_list = np.stack(padded_scans).astype(np.float32)
 
-#         if len(result) != 0:
-#             rgb_data.append(result)
-#             label.append(int(tmp_label))
-#             batch_index += 1
-#             read_files.append(cur_file)
+        if len(result) != 0:
+            rgb_data.append(result)
+            label.append(int(tmp_label))
+            batch_index += 1
+            read_files.append(cur_file)
 
-#     # pad (duplicate) data/label if less than batch_size
-#     valid_len = len(rgb_data)
-#     pad_len = batch_size - valid_len
-#     if pad_len:
-#         for i in range(pad_len):
-#             rgb_data.append(rgb_data[-1])
-#             label.append(int(label[-1]))
+    # pad (duplicate) data/label if less than batch_size
+    valid_len = len(rgb_data)
+    pad_len = batch_size - valid_len
+    if pad_len:
+        for i in range(pad_len):
+            rgb_data.append(rgb_data[-1])
+            label.append(int(label[-1]))
 
-#     np_arr_rgb_data = np.array(rgb_data)#.astype(np.float32)
-#     np_arr_label = np.array(label).astype(np.int64).reshape(batch_size)
+    np_arr_rgb_data = np.array(rgb_data)#.astype(np.float32)
+    np_arr_label = np.array(label).astype(np.int64).reshape(batch_size)
 
-#     return np_arr_rgb_data, np_arr_label #, next_batch_start, read_files, valid_len
+    return np_arr_rgb_data, np_arr_label #, next_batch_start, read_files, valid_len
 
 
 # def data_process_pos(tmp_data, crop_size, position):

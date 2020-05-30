@@ -45,46 +45,47 @@ def main(args):
     run_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
 
     # Create session run training
-    with tf.Session(config=run_config) as sess:
-        # init = tf.global_variables_initializer()
+    # with tf.Session(config=run_config) as sess:
+    # init = tf.global_variables_initializer()
+    # self.sess.run(init)
 
-        # Model Saver
-        model_saver = tf.train.Saver()
-        # model_ckpt = tf.train.get_checkpoint_state(model_path)
-        # idx_path = model_ckpt.model_checkpoint_path + ".index" if model_ckpt else ""
+    # Model Saver
+    # model_saver = tf.train.Saver()
+    # model_ckpt = tf.train.get_checkpoint_state(model_path)
+    # idx_path = model_ckpt.model_checkpoint_path + ".index" if model_ckpt else ""
 
-        # Intitialze with pretrained weights
-        print('\nINFO: Loading from previously stored session \n')
-        # pretrained_saver.restore(sess, model_ckpt.model_checkpoint_path)
-        model.pretrained_saver.restore(sess, join(args.data_dir, args.ckpt))
-        print('\nINFO: Loaded pretrained model \n')
+    # Intitialze with pretrained weights
+    print('\nINFO: Loading from previously stored session \n')
+    # pretrained_saver.restore(sess, model_ckpt.model_checkpoint_path)
+    model.pretrained_saver.restore(model.sess, join(args.data_dir, args.ckpt))
+    print('\nINFO: Loaded pretrained model \n')
 
-        if args.inference_mode:
-            print('\nINFO: Begin Inference Mode \n')
-            # Shuffle Validation Set
-            shuffle(dev)
-            # Run Inference Mode
-            model.inference_mode(sess, dev, [vocab_dict, vocab_rev],
-                                num_examples=args.num_examples, dropout=1.0)
-        else:
-            print('\nINFO: Begin Training \n')
+    if args.inference_mode:
+        print('\nINFO: Begin Inference Mode \n')
+        # Shuffle Validation Set
+        shuffle(dev)
+        # Run Inference Mode
+        model.inference_mode(sess, dev, [vocab_dict, vocab_rev],
+                            num_examples=args.num_examples, dropout=1.0)
+    else:
+        print('\nINFO: Begin Training \n')
 
-            for epoch in range(args.epochs):
-                print("Epoch Number: ", epoch + 1)
+        for epoch in range(args.epochs):
+            print("\n+++++++++++++++Epoch Number: ", epoch + 1)
 
-                # Shuffle Dataset
-                shuffle(train_list)
+            # Shuffle Dataset
+            shuffle(train_list)
 
-                # Run training for 1 epoch
-                model.train_loop(sess, train_list, args.batch_size)
+            # Run training for 1 epoch
+            model.train_loop(train_list, args.batch_size)
 
-                # Save Weights after each epoch
-                print("Saving Weights")
-                model_saver.save(sess, "{}/trained_model_{}.ckpt".format(model_path, epoch))
+            # Save Weights after each epoch
+            print("Saving Weights")
+            # model_saver.save(sess, "{}/trained_model_{}.ckpt".format(model_path, epoch))
 
-                # Start validation phase at end of each epoch
-                print("Begin Validation")
-                # run_loop(sess, processed_val, placeholders, mode='val')
+            # Start validation phase at end of each epoch
+            print("Begin Validation")
+            # run_loop(sess, processed_val, placeholders, mode='val')
 
 
 class I3dForCTVolumes:
@@ -93,58 +94,81 @@ class I3dForCTVolumes:
         self.crop_size = crop_size
         self.num_frames = num_frames
 
-        # with tf.Graph().as_default():
-        # Placeholders
-        self.images_placeholder, self.labels_placeholder, self.is_training_placeholder = utils.placeholder_inputs(
-                batch_size=batch_size,
-                num_frame_per_clip=self.num_frames,
-                crop_size=self.crop_size,
-                rgb_channels=3
-                )
+        with tf.Graph().as_default():
+            # Learning Rate
+            global_step = tf.get_variable(
+                    'global_step',
+                    [],
+                    initializer=tf.constant_initializer(0),
+                    trainable=False
+                    )
 
-        # Learning Rate
-        global_step = tf.get_variable(
-                'global_step',
-                [],
-                initializer=tf.constant_initializer(0),
-                trainable=False
-                )
-        self.lr = tf.train.exponential_decay(learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
+            # Placeholders
+            self.images_placeholder, self.labels_placeholder, self.is_training_placeholder = utils.placeholder_inputs(
+                    batch_size=batch_size,
+                    num_frame_per_clip=self.num_frames,
+                    crop_size=self.crop_size,
+                    rgb_channels=3
+                    )
 
-        # Optimizer
-        self.optimizer = tf.train.AdamOptimizer(self.lr)
+            # self.lr = tf.train.exponential_decay(learning_rate, self.global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
+            learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
+            opt_rgb = tf.train.AdamOptimizer(learning_rate)
 
-        # Init I3D model
-        with tf.device('/device:' + device + ':0'):
-            with tf.variable_scope('RGB'):
-                self.logits, _ = InceptionI3d(num_classes=2)(self.images_placeholder, self.is_training_placeholder)
+            # Init I3D model
+            with tf.device('/device:' + device + ':0'):
+                with tf.variable_scope('RGB'):
+                    rgb_logit, _ = InceptionI3d(num_classes=2)(self.images_placeholder, self.is_training_placeholder)
 
-        self.loss = utils.tower_loss(self.logits, self.labels_placeholder)
-        self.accuracy = utils.tower_acc(self.logits, self.labels_placeholder)
+                rgb_loss = utils.tower_loss(
+                                rgb_logit,
+                                self.labels_placeholder
+                                )
+                accuracy = utils.tower_acc(rgb_logit, self.labels_placeholder)
+                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                with tf.control_dependencies(update_ops):
+                    rgb_grads = opt_rgb.compute_gradients(rgb_loss)
+                    apply_gradient_rgb = opt_rgb.apply_gradients(rgb_grads, global_step=global_step)
+                    self.train_op = tf.group(apply_gradient_rgb)
+                    null_op = tf.no_op()
 
-        # Create a saver for loading pretrained checkpoints.
-        pretrained_variable_map = {}
-        for variable in tf.global_variables():
-            if variable.name.split('/')[0] == 'RGB' and 'Adam' not in variable.name.split('/')[-1] and variable.name.split('/')[2] != 'Logits':
-                pretrained_variable_map[variable.name.replace(':0', '')] = variable
-        self.pretrained_saver = tf.train.Saver(var_list=pretrained_variable_map, reshape=True)
+            self.accuracy = accuracy
+            self.loss = rgb_loss
 
+            # Create a saver for loading pretrained checkpoints.
+            pretrained_variable_map = {}
+            for variable in tf.global_variables():
+                if variable.name.split('/')[0] == 'RGB' and 'Adam' not in variable.name.split('/')[-1] and variable.name.split('/')[2] != 'Logits':
+                    pretrained_variable_map[variable.name.replace(':0', '')] = variable
+            self.pretrained_saver = tf.train.Saver(var_list=pretrained_variable_map, reshape=True)
 
-    def train_loop(self, sess, data_list, batch_size=1):
+            init = tf.global_variables_initializer()
+            # Create a session for running Ops on the Graph.
+            self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+            self.sess.run(init)
+
+    def train_loop(self, data_list, batch_size=1):
         for i, list_batch in utils.batch(data_list, batch_size):
-            images_batch_np, labels_batch_np = self.process_coupled_data(list_batch)
+            print('============\nStep {}', i)
+            images_batch, labels_batch = self.process_coupled_data(list_batch)
+            print('batch size: {} ', len(images_batch))
+            feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=True)
 
-            feed_dict = self.coupled_data_to_dict(images_batch_np, labels_batch_np, is_training=True)
+            # _, train_loss, _, logits, labels = sess.run(
+            #     [self.optimizer, self.loss, self.lr, self.logits, self.labels_placeholder], feed_dict=feed_dict)
 
-            _, train_loss, _, logits, labels = sess.run(
-                [self.optimizer, self.loss, self.lr, self.logits, self.labels_placeholder], feed_dict=feed_dict)
+            self.sess.run(self.train_op, feed_dict=feed_dict)
 
-            if i % 20 == 0:
-                print('iteration = {}, train loss = {}'.format(i, train_loss))
-                accuracy, auc = calc_metrics(labels, logits)
-                print("train accuracy = {}, train auc = {}", accuracy, auc)
+            if i % 10 == 0:
+                # print('iteration = {}, train loss = {}'.format(i, train_loss))
+                # accuracy, auc = calc_metrics(labels, logits)
+                # print("train accuracy = {}, train auc = {}", accuracy, auc)
+                feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=False)
+                acc, loss = self.sess.run([self.accuracy, self.loss], feed_dict=feed_dict)
+                print("accuracy: " + "{:.5f}".format(acc))
+                print("rgb_loss: " + "{:.5f}".format(loss))                
 
-            self.global_step.assign(self.global_step + 1)
+            # self.global_step.assign(self.global_step + 1)
 
     def coupled_data_to_dict(self, train_images, train_labels, is_training):
         return {
