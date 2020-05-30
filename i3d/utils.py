@@ -23,40 +23,11 @@ import tensorflow as tf
 import math
 import numpy as np
 
-def coupled_data_to_dict(images_placeholder, labels_placeholder, is_train=False):
-    pass
-
-def process_coupled_data(coupled_data, data_dir, crop_size=198, num_frames=197):
-    data = []
-    labels = []
-
-    for cur_file, label in coupled_data:
-        print("Loading image from {} with label {}".format(cur_file, label))
-
-        result = np.zeros((num_frames, crop_size, crop_size, 3)).astype(np.float32)
-        scan_arr = np.load(os.path.join(data_dir, cur_file)).astype(np.float32)
-        result[:num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
-            scan_arr[:num_frames, :crop_size, :crop_size, :3]
-
-        data.append(result)
-        labels.append(label)
-
-    # pad (duplicate) data/label if less than batch_size
-    # valid_len = len(rgb_data)
-    # pad_len = batch_size - valid_len
-    # if pad_len:
-    #     for i in range(pad_len):
-    #         rgb_data.append(rgb_data[-1])
-    #         label.append(int(label[-1]))
-
-    np_arr_data = np.array(data)
-    np_arr_labels = np.array(labels).astype(np.int64).reshape(len(coupled_data))
-    return np_arr_data, np_arr_labels
 
 def batch(iterable, n=1):
     l = len(iterable)
-    for ndx in range(0, l, n):
-        yield iterable[ndx: min(ndx + n, l)]
+    for i, ndx in enumerate(range(0, l, n)):
+        yield i, iterable[ndx: min(ndx + n, l)]
 
 def load_data_list(path):
     coupled_data = []

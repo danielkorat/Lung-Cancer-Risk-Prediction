@@ -60,12 +60,12 @@ def run_training():
     pretrained_path = FLAGS.data_dir + 'checkpoints/inflated/model.ckpt'
 
     with tf.Graph().as_default():
-        # global_step = tf.get_variable(
-        #                 'global_step',
-        #                 [],
-        #                 initializer=tf.constant_initializer(0),
-        #                 trainable=False
-        #                 )
+        global_step = tf.get_variable(
+                        'global_step',
+                        [],
+                        initializer=tf.constant_initializer(0),
+                        trainable=False
+                        )
         rgb_images_placeholder, labels_placeholder, is_training = utils.placeholder_inputs(
                         batch_size=FLAGS.batch_size * gpu_num,
                         num_frame_per_clip=FLAGS.num_frame_per_clip,
@@ -73,8 +73,8 @@ def run_training():
                         rgb_channels=FLAGS.rgb_channels
                         )
 
-        # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
-        # opt_rgb = tf.train.AdamOptimizer(learning_rate)
+        learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
+        opt_rgb = tf.train.AdamOptimizer(learning_rate)
         #opt_stable = tf.train.MomentumOptimizer(learning_rate, 0.9)
         with tf.variable_scope('RGB'):
             rgb_logit, _ = InceptionI3d(
