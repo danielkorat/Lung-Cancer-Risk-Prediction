@@ -41,24 +41,13 @@ def main(args):
 
     model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, device=args.select_device)
 
-    # Define Configs for training
-    run_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
-
-    # Create session run training
-    # with tf.Session(config=run_config) as sess:
-    # init = tf.global_variables_initializer()
-    # self.sess.run(init)
-
-    # Model Saver
-    # model_saver = tf.train.Saver()
-    # model_ckpt = tf.train.get_checkpoint_state(model_path)
-    # idx_path = model_ckpt.model_checkpoint_path + ".index" if model_ckpt else ""
-
     # Intitialze with pretrained weights
     print('\nINFO: Loading from previously stored session \n')
     # pretrained_saver.restore(sess, model_ckpt.model_checkpoint_path)
     model.pretrained_saver.restore(model.sess, join(args.data_dir, args.ckpt))
     print('\nINFO: Loaded pretrained model \n')
+
+    val_images, val_labels = model.process_coupled_data(val_list)
 
     if args.inference_mode:
         print('\nINFO: Begin Inference Mode \n')
@@ -71,7 +60,7 @@ def main(args):
         print('\nINFO: Begin Training \n')
 
         for epoch in range(args.epochs):
-            print("\n+++++++++++++++Epoch Number: ", epoch + 1)
+            print("\n+++++++++++++++++++++ EPOCH ", epoch + 1)
 
             # Shuffle Dataset
             shuffle(train_list)
@@ -85,7 +74,7 @@ def main(args):
 
             # Start validation phase at end of each epoch
             print("Begin Validation")
-            # run_loop(sess, processed_val, placeholders, mode='val')
+            model.val_loop(val_images, val_labels)
 
 
 class I3dForCTVolumes:
@@ -144,31 +133,29 @@ class I3dForCTVolumes:
 
             init = tf.global_variables_initializer()
             # Create a session for running Ops on the Graph.
-            self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+            run_config = tf.ConfigProto(allow_soft_placement=True)
+            self.sess = tf.Session(config=run_config)
             self.sess.run(init)
 
     def train_loop(self, data_list, batch_size=1):
         for i, list_batch in utils.batch(data_list, batch_size):
-            print('============\nStep {}', i)
+            print('========== STEP', i + 1)
             images_batch, labels_batch = self.process_coupled_data(list_batch)
-            print('batch size: {} ', len(images_batch))
-            feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=True)
 
-            # _, train_loss, _, logits, labels = sess.run(
-            #     [self.optimizer, self.loss, self.lr, self.logits, self.labels_placeholder], feed_dict=feed_dict)
+            feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=True)
 
             self.sess.run(self.train_op, feed_dict=feed_dict)
 
             if i % 10 == 0:
-                # print('iteration = {}, train loss = {}'.format(i, train_loss))
-                # accuracy, auc = calc_metrics(labels, logits)
-                # print("train accuracy = {}, train auc = {}", accuracy, auc)
                 feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=False)
                 acc, loss = self.sess.run([self.accuracy, self.loss], feed_dict=feed_dict)
-                print("accuracy: " + "{:.5f}".format(acc))
-                print("rgb_loss: " + "{:.5f}".format(loss))                
+                print("\n accuracy: " + "{:.5f}".format(acc))
+                print(" loss: " + "{:.5f}".format(loss)) 
 
-            # self.global_step.assign(self.global_step + 1)
+    def val_loop(self, val_images, val_labels):
+        feed_dict = self.coupled_data_to_dict(val_images, val_labels, is_training=False)
+        acc = self.sess.run([self.accuracy], feed_dict=feed_dict)
+        print("accuracy: " + "{:.5f}".format(acc))
 
     def coupled_data_to_dict(self, train_images, train_labels, is_training):
         return {
