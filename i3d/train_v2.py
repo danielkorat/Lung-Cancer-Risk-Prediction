@@ -19,7 +19,7 @@ from random import shuffle
 import os
 import numpy as np
 import utils
-
+from utils import batcher 
 import argparse
 import tensorflow as tf
 from i3d import InceptionI3d
@@ -60,7 +60,7 @@ def main(args):
         print('\nINFO: Begin Training \n')
 
         for epoch in range(args.epochs):
-            print("\n+++++++++++++++++++++ EPOCH ", epoch + 1)
+            print("\nINFO: +++++++++++++++++++++ EPOCH ", epoch + 1)
 
             # Shuffle Dataset
             shuffle(train_list)
@@ -69,11 +69,11 @@ def main(args):
             model.train_loop(train_list)
 
             # Save Weights after each epoch
-            # print("Saving Weights")
+            # print("\nINFO: Saving Weights")
             # model_saver.save(sess, "{}/trained_model_{}.ckpt".format(model_path, epoch))
 
             # Start validation phase at end of each epoch
-            print("Begin Validation")
+            print("\nINFO: Begin Validation")
             model.val_loop(val_images, val_labels)
 
 
@@ -85,7 +85,6 @@ class I3dForCTVolumes:
         self.batch_size = batch_size
 
         with tf.Graph().as_default():
-            # Learning Rate
             global_step = tf.get_variable(
                     'global_step',
                     [],
@@ -102,21 +101,30 @@ class I3dForCTVolumes:
                     )
 
             # self.lr = tf.train.exponential_decay(learning_rate, self.global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
+            
+            # Learning rate
             learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
-            opt_rgb = tf.train.AdamOptimizer(learning_rate)
+            
+            # Optimizer
+            optimizer = tf.train.AdamOptimizer(learning_rate) #ORIGINAL OPTIMIZER
+            # opt_rgb = tf.train.AdamOptimizer()
 
             # Init I3D model
             with tf.device('/device:' + device + ':0'):
                 with tf.variable_scope('RGB'):
                     self.logits, _ = InceptionI3d(num_classes=2)(self.images_placeholder, self.is_training_placeholder)
 
-                self.loss = utils.tower_loss(self.logits, self.labels_placeholder)
-                self.accuracy = utils.tower_acc(self.logits, self.labels_placeholder)
+                # Loss function
+                self.loss = utils.cross_entropy_loss(self.logits, self.labels_placeholder)
+
+                # Evaluation metrics
+                self.accuracy = utils.accuracy(self.logits, self.labels_placeholder)
+
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 with tf.control_dependencies(update_ops):
-                    rgb_grads = opt_rgb.compute_gradients(self.loss)
-                    apply_gradient_rgb = opt_rgb.apply_gradients(rgb_grads, global_step=global_step)
-                    self.train_op = tf.group(apply_gradient_rgb)
+                    grads = optimizer.compute_gradients(self.loss)
+                    apply_gradient = optimizer.apply_gradients(grads, global_step=global_step)
+                    self.train_op = tf.group(apply_gradient)
                     null_op = tf.no_op()
 
             # Create a saver for loading pretrained checkpoints.
@@ -133,28 +141,30 @@ class I3dForCTVolumes:
             self.sess.run(init)
 
     def train_loop(self, data_list):
-        for i, list_batch in enumerate(utils.batch(data_list, self.batch_size)):
-            print('========== STEP', i + 1)
+        for i, list_batch in enumerate(batcher(data_list, self.batch_size)):
+            print('\nINFO: ========== STEP', i + 1)
             images_batch, labels_batch = self.process_coupled_data(list_batch)
 
             feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=True)
 
             self.sess.run(self.train_op, feed_dict=feed_dict)
+            # res = self.sess.run([self.train_op, self.accuracy, self.loss], feed_dict=feed_dict)
 
             if i % 10 == 0:
                 feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=False)
                 acc, loss = self.sess.run([self.accuracy, self.loss], feed_dict=feed_dict)
-                print("\n accuracy: " + "{:.5f}".format(acc))
-                print(" loss: " + "{:.5f}".format(loss)) 
+                print("\nINFO Train accuracy: {:.5f}".format(acc))
+                print("\nINFO Train loss: {:.5f}".format(loss)) 
 
-    def val_loop(self, val_images, val_labels):
+    def val_loop(self, images, labels):
         acc_list = []
-        for coupled_batch in utils.batch(zip(val_images, val_labels), self.batch_size):
-            feed_dict = self.coupled_data_to_dict(val_images, val_labels, is_training=False)
+        for image_batch, label_batch in zip(batcher(images, self.batch_size), batcher(labels, self.batch_size)):
+            feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=False)
             acc = self.sess.run([self.accuracy], feed_dict=feed_dict)
             acc_list.append(acc)
+            print('batch acc: ', acc)
         mean_acc = np.mean(acc_list)
-        print("accuracy: " + "{:.5f}".format(mean_acc))
+        print("\nINFO: Test accuracy: {:.5f}".format(mean_acc))
 
     def coupled_data_to_dict(self, train_images, train_labels, is_training):
         return {
@@ -167,7 +177,7 @@ class I3dForCTVolumes:
         data = []
         labels = []
         for cur_file, label in coupled_data:
-            print("Loading image from {} with label {}".format(cur_file, label))
+            # print("\nINFO: Loading image from {} with label {}".format(cur_file, label))
             result = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
             scan_arr = np.load(join(self.data_dir, cur_file)).astype(np.float32)
             result[:self.num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
@@ -190,7 +200,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--gpu_id', default="0", type=str, help='gpu id')
 
-    parser.add_argument('--epochs', default=2, type=int,  help='the number of epochs')
+    parser.add_argument('--epochs', default=6, type=int,  help='the number of epochs')
 
     parser.add_argument('--select_device', default='GPU', type=str, help='the device to execute on')
 

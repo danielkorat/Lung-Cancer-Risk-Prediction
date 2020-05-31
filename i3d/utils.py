@@ -24,7 +24,7 @@ import math
 import numpy as np
 
 
-def batch(iterable, batch_size=1):
+def batcher(iterable, batch_size=1):
     iter_len = len(iterable)
     for i in range(0, iter_len, batch_size):
         yield iterable[i: min(i + batch_size, iter_len)]
@@ -56,14 +56,14 @@ def placeholder_inputs(batch_size=16, num_frame_per_clip=16, crop_size=199, rgb_
     # Note that the shapes of the placeholders match the shapes of the full
     # image and label tensors, except the first dimension is now batch_size
     # rather than the full size of the train or test data sets.
-    rgb_images_placeholder = tf.placeholder(tf.float32, shape=(batch_size,
+    images_placeholder = tf.placeholder(tf.float32, shape=(None,
                                                            num_frame_per_clip,
                                                            crop_size,
                                                            crop_size,
                                                            rgb_channels))
-    labels_placeholder = tf.placeholder(tf.int64, shape=(batch_size))
+    labels_placeholder = tf.placeholder(tf.int64, shape=(None))
     is_training = tf.placeholder(tf.bool)
-    return rgb_images_placeholder, labels_placeholder, is_training
+    return images_placeholder, labels_placeholder, is_training
 
 
 def average_gradients(tower_grads):
@@ -81,20 +81,18 @@ def average_gradients(tower_grads):
     return average_grads
 
 
-def tower_loss(logit, labels):
-    print(labels)
-    print(logit)
-    print(logit.shape)
+def cross_entropy_loss(logits, labels):
+    print('Loss variables:')
+    print('labels:', labels)
+    print('logits:', logits)
+    print('logits.shape:', logits.shape)
     cross_entropy_mean = tf.reduce_mean(
-                  tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logit)
+                  tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits)
                   )
-
-    # Calculate the total loss for the current tower.
-    total_loss = cross_entropy_mean
-    return total_loss
+    return cross_entropy_mean
 
 
-def tower_acc(logit, labels):
+def accuracy(logit, labels):
     correct_pred = tf.equal(tf.argmax(logit, 1), labels)
     accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
     return accuracy
