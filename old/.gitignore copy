@@ -139,10 +139,9 @@ dmypy.json
 *.zraw
 *.npy
 *.meta
-*.DS_Store
 
-data/checkpoints
-data/datasets
-
+i3d/data/checkpoints
 visual_logs/
 models/
+
+datasets
