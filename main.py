@@ -205,16 +205,16 @@ class I3dForCTVolumes:
         data = []
         labels = []
         for cur_file, label in coupled_data:
-            try:
-                result = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
-                print("\INFO: Loading image from {}".format(cur_file))
-                scan_arr = np.load(join(self.data_dir, cur_file)).astype(np.float32)
-                print('orig shape:', scan_arr.shape)
-                result[:self.num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
-                    scan_arr[:self.num_frames, :self.crop_size, :self.crop_size, :3]
-            except Exception as e:
-                print("\ERROR Loading image from {} with shape {}".format(cur_file, scan_arr.shape))
-                raise e
+            # try:
+            result = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
+            print("\nINFO: Loading image from {}".format(cur_file))
+            scan_arr = np.load(join(self.data_dir, cur_file)).astype(np.float32)
+            print('\nINFO Orig image shape:', scan_arr.shape)
+            result[:self.num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
+                scan_arr[:self.num_frames, :self.crop_size, :self.crop_size, :3]
+            # except Exception as e:
+            #     print("\ERROR Loading image from {} with shape {}".format(cur_file, scan_arr.shape))
+            #     raise e
 
             data.append(result)
             labels.append(label)
@@ -236,7 +236,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--gpu_id', default="0", type=str, help='gpu id')
 
-    parser.add_argument('--epochs', default=6, type=int,  help='the number of epochs')
+    parser.add_argument('--epochs', default=2, type=int,  help='the number of epochs')
 
     parser.add_argument('--select_device', default='GPU', type=str, help='the device to execute on')
 
