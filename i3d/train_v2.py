@@ -24,6 +24,7 @@ import argparse
 import tensorflow as tf
 from i3d import InceptionI3d
 from os.path import join
+from time import time
 
 def main(args):
     # Set GPU
@@ -45,7 +46,7 @@ def main(args):
     print('\nINFO: Loading from previously stored session \n')
     # pretrained_saver.restore(sess, model_ckpt.model_checkpoint_path)
     model.pretrained_saver.restore(model.sess, join(args.data_dir, args.ckpt))
-    print('\nINFO: Loaded pretrained model \n')
+    print('\nINFO: Loaded pretrained model')
 
     val_images, val_labels = model.process_coupled_data(val_list)
 
@@ -61,6 +62,7 @@ def main(args):
 
         for epoch in range(args.epochs):
             print("\nINFO: +++++++++++++++++++++ EPOCH ", epoch + 1)
+            start_time = time()
 
             # Shuffle Dataset
             shuffle(train_list)
@@ -71,10 +73,15 @@ def main(args):
             # Save Weights after each epoch
             # print("\nINFO: Saving Weights")
             # model_saver.save(sess, "{}/trained_model_{}.ckpt".format(model_path, epoch))
+            
+            train_end_time = time()
+            print('\nINFO: Train Epoch duration: {:.2f} secs'.format(train_end_time - start_time))
 
             # Start validation phase at end of each epoch
             print("\nINFO: Begin Validation")
             model.val_loop(val_images, val_labels)
+            print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
+
 
 
 class I3dForCTVolumes:
@@ -112,13 +119,14 @@ class I3dForCTVolumes:
             # Init I3D model
             with tf.device('/device:' + device + ':0'):
                 with tf.variable_scope('RGB'):
-                    self.logits, _ = InceptionI3d(num_classes=2)(self.images_placeholder, self.is_training_placeholder)
+                    self.logits, _ = InceptionI3d(num_classes=2, final_endpoint='Predictions')(self.images_placeholder, self.is_training_placeholder)
 
                 # Loss function
                 self.loss = utils.cross_entropy_loss(self.logits, self.labels_placeholder)
 
                 # Evaluation metrics
                 self.accuracy = utils.accuracy(self.logits, self.labels_placeholder)
+                self.auc = tf.metrics.auc(self.labels_placeholder, self.logits[:, 1])
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 with tf.control_dependencies(update_ops):
@@ -134,7 +142,9 @@ class I3dForCTVolumes:
                     pretrained_variable_map[variable.name.replace(':0', '')] = variable
             self.pretrained_saver = tf.train.Saver(var_list=pretrained_variable_map, reshape=True)
 
-            init = tf.global_variables_initializer()
+            # init = tf.global_variables_initializer()
+            init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+
             # Create a session for running Ops on the Graph.
             run_config = tf.ConfigProto(allow_soft_placement=True)
             self.sess = tf.Session(config=run_config)
@@ -158,13 +168,22 @@ class I3dForCTVolumes:
 
     def val_loop(self, images, labels):
         acc_list = []
+        auc_list = []
         for image_batch, label_batch in zip(batcher(images, self.batch_size), batcher(labels, self.batch_size)):
             feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=False)
-            acc = self.sess.run([self.accuracy], feed_dict=feed_dict)
+            acc, auc = self.sess.run([self.accuracy, self.auc], feed_dict=feed_dict)
             acc_list.append(acc)
-            print('batch acc: ', acc)
+            auc_list.append(auc)
+        
+        print('\nDEBUG: Batch accuracy: ', acc_list)
+        print('\nDEBUG: Batch AUC: ', auc_list)
         mean_acc = np.mean(acc_list)
-        print("\nINFO: Test accuracy: {:.5f}".format(mean_acc))
+        # TODO: Is it ok to average AUC over batches?
+        mean_auc = np.mean(auc_list)
+        print('\n================================')
+        print("||  INFO: Val accuracy: {:.5f}  ||".format(mean_acc))
+        print("||  INFO: Val AUC:       {:.5f} ||".format(mean_auc))
+        print('\n================================')
 
     def coupled_data_to_dict(self, train_images, train_labels, is_training):
         return {
