@@ -97,6 +97,11 @@ def accuracy(logit, labels):
     accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
     return accuracy
 
+def get_preds(preds):
+    return preds[:, 1]
+
+def get_logits(logits):
+    return logits
 
 def _variable_on_cpu(name, shape, initializer):
     with tf.device('/cpu:0'):

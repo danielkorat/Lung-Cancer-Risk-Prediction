@@ -26,6 +26,7 @@ from i3d import InceptionI3d
 from os.path import join, dirname, realpath
 from time import time
 from tqdm import tqdm
+from sklearn.metrics import roc_auc_score
 
 def main(args):
     # Set GPU
@@ -39,10 +40,10 @@ def main(args):
     # Create train and dev sets
     print("Creating training and validation sets")
 
-    if not args.debug:
-        train_list, test_list = args.train, args.test
+    if args.debug:
+        train_list, test_list = args.debug + '_' + args.train, args.debug + '_' + args.test
     else:
-        train_list, test_list = 'debug_' + args.train, 'debug_' + args.test
+        train_list, test_list = args.train, args.test
 
     train_list_path = join(args.data_dir, 'lists', train_list)
     test_list_path = join(args.data_dir, 'lists', test_list)
@@ -124,8 +125,7 @@ class I3dForCTVolumes:
             learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
             
             # Optimizer
-            optimizer = tf.train.AdamOptimizer(learning_rate) #ORIGINAL OPTIMIZER
-            # opt_rgb = tf.train.AdamOptimizer()
+            optimizer = tf.train.AdamOptimizer(learning_rate)
 
             # Init I3D model
             with tf.device('/device:' + device + ':0'):
@@ -139,6 +139,8 @@ class I3dForCTVolumes:
                 self.loss = utils.cross_entropy_loss(self.logits, self.labels_placeholder)
 
                 # Evaluation metrics
+                self.get_preds = utils.get_preds(self.preds)
+                self.get_logits = utils.get_logits(self.logits)
                 self.accuracy = utils.accuracy(self.logits, self.labels_placeholder)
                 self.auc = tf.metrics.auc(self.labels_placeholder, self.preds[:, 1])
 
@@ -184,32 +186,27 @@ class I3dForCTVolumes:
         acc_list = []
         auc_list = []
         loss_list = []
+        preds_list = []
 
         for image_batch, label_batch in tqdm(list(zip(batcher(images, self.batch_size), batcher(labels, self.batch_size)))):
             feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=False)
-            acc, auc, loss = self.sess.run([self.accuracy, self.auc, self.loss], feed_dict=feed_dict)
+            acc, auc, loss, preds = self.sess.run([self.accuracy, self.auc, self.loss, self.get_preds], feed_dict=feed_dict)
             acc_list.append(acc)
-            auc_list.append(auc)
             loss_list.append(loss)
+            preds_list.extend(preds)
 
-        auc_all = self.sess.run([self.auc], feed_dict={
-                self.images_placeholder: images,
-                self.labels_placeholder: labels,
-                self.is_training_placeholder: False
-                })
-        print('\nDEBUG: AUC all: ', acc_list)
-
+        print('\nDEBUG: Val Batch preds: ', preds_list)
+        print('\nDEBUG: Val Batch labels: ', labels)
         print('\nDEBUG: Val Batch accuracy: ', acc_list)
-        print('\nDEBUG: Val Batch AUC: ', auc_list)
         print('\nDEBUG: Val Batch Loss: ', loss_list)
         mean_acc = np.mean(acc_list)
         mean_loss = np.mean(loss_list)
-        # TODO: Is it ok to average AUC over batches?
-        mean_auc = np.mean(auc_list)
+        auc_score = roc_auc_score(labels, preds_list)
+
         print('\n' + '=' * 34)
         print("||  INFO: Val Accuracy: {:.5f} ||".format(mean_acc))
         print("||  INFO: Val Loss:      {:.5f} ||".format(mean_loss))
-        print("||  INFO: Val AUC:      {:.5f} ||".format(mean_auc))
+        print("||  INFO: Val AUC:      {:.5f} ||".format(auc_score))
         print('=' * 34)
 
     def coupled_data_to_dict(self, images, labels, is_training):
@@ -250,7 +247,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', default=str(dirname(realpath(__file__))) + '/data', help='path to training data')
 
-    parser.add_argument('--debug', default=True, type=bool, help='whether to run debug dataset')
+    parser.add_argument('--debug', default='md', type=str, help='which debug dataset to run')
 
     parser.add_argument('--train', default='train.list', help='path to training data')
 
@@ -258,7 +255,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--gpu_id', default="0", type=str, help='gpu id')
 
-    parser.add_argument('--epochs', default=35, type=int,  help='the number of epochs')
+    parser.add_argument('--epochs', default=60, type=int,  help='the number of epochs')
 
     parser.add_argument('--select_device', default='GPU', type=str, help='the device to execute on')
 
@@ -269,8 +266,6 @@ if __name__ == "__main__":
     parser.add_argument('--inference_mode', default=False, type=bool, help='whether to run inference only')
 
     parser.add_argument('--batch_size', default=3, type=int, help='the training batch size')
-
-    parser.add_argument('--num_examples', default=50, type=int, help='the number of examples to run inference')
 
     parser.set_defaults()
     main(parser.parse_args())
