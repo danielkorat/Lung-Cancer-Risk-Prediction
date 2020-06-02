@@ -25,6 +25,7 @@ import tensorflow as tf
 from i3d import InceptionI3d
 from os.path import join, dirname, realpath
 from time import time
+from tqdm import tqdm
 
 def main(args):
     # Set GPU
@@ -57,6 +58,7 @@ def main(args):
     model.pretrained_saver.restore(model.sess, join(args.data_dir, args.ckpt))
     print('\nINFO: Loaded pretrained model')
 
+    print('\nINFO: Processing validation data')
     val_images, val_labels = model.process_coupled_data(val_list)
 
     if args.inference_mode:
@@ -127,15 +129,18 @@ class I3dForCTVolumes:
 
             # Init I3D model
             with tf.device('/device:' + device + ':0'):
-                with tf.variable_scope('RGB'):
-                    self.logits, _ = InceptionI3d(num_classes=2, final_endpoint='Predictions')(self.images_placeholder, self.is_training_placeholder)
+                
+                with tf.compat.v1.variable_scope('RGB'):
+                    _, end_points = InceptionI3d(num_classes=2, final_endpoint='Predictions')(self.images_placeholder, self.is_training_placeholder)
 
+                self.logits = end_points['Logits']
+                self.preds = end_points['Predictions']
                 # Loss function
                 self.loss = utils.cross_entropy_loss(self.logits, self.labels_placeholder)
 
                 # Evaluation metrics
                 self.accuracy = utils.accuracy(self.logits, self.labels_placeholder)
-                self.auc = tf.metrics.auc(self.labels_placeholder, self.logits[:, 1])
+                self.auc = tf.metrics.auc(self.labels_placeholder, self.preds[:, 1])
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 with tf.control_dependencies(update_ops):
@@ -160,8 +165,8 @@ class I3dForCTVolumes:
             self.sess.run(init)
 
     def train_loop(self, data_list):
-        for i, list_batch in enumerate(batcher(data_list, self.batch_size)):
-            print('\nINFO: ========== STEP', i + 1)
+        for i, list_batch in tqdm(enumerate(list(batcher(data_list, self.batch_size)))):
+            # print('\nINFO: ========== STEP', i + 1)
             images_batch, labels_batch = self.process_coupled_data(list_batch)
 
             feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=True)
@@ -169,7 +174,7 @@ class I3dForCTVolumes:
             self.sess.run(self.train_op, feed_dict=feed_dict)
             # res = self.sess.run([self.train_op, self.accuracy, self.loss], feed_dict=feed_dict)
 
-            if i % 10 == 0:
+            if i % 30 == 0:
                 feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=False)
                 acc, loss = self.sess.run([self.accuracy, self.loss], feed_dict=feed_dict)
                 print("\nINFO Train accuracy: {:.5f}".format(acc))
@@ -178,48 +183,65 @@ class I3dForCTVolumes:
     def val_loop(self, images, labels):
         acc_list = []
         auc_list = []
-        for image_batch, label_batch in zip(batcher(images, self.batch_size), batcher(labels, self.batch_size)):
+        loss_list = []
+
+        for image_batch, label_batch in tqdm(list(zip(batcher(images, self.batch_size), batcher(labels, self.batch_size)))):
             feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=False)
-            acc, auc = self.sess.run([self.accuracy, self.auc], feed_dict=feed_dict)
+            acc, auc, loss = self.sess.run([self.accuracy, self.auc, self.loss], feed_dict=feed_dict)
             acc_list.append(acc)
             auc_list.append(auc)
-        
-        print('\nDEBUG: Batch accuracy: ', acc_list)
-        print('\nDEBUG: Batch AUC: ', auc_list)
+            loss_list.append(loss)
+
+        auc_all = self.sess.run([self.auc], feed_dict={
+                self.images_placeholder: images,
+                self.labels_placeholder: labels,
+                self.is_training_placeholder: False
+                })
+        print('\nDEBUG: AUC all: ', acc_list)
+
+        print('\nDEBUG: Val Batch accuracy: ', acc_list)
+        print('\nDEBUG: Val Batch AUC: ', auc_list)
+        print('\nDEBUG: Val Batch Loss: ', loss_list)
         mean_acc = np.mean(acc_list)
+        mean_loss = np.mean(loss_list)
         # TODO: Is it ok to average AUC over batches?
         mean_auc = np.mean(auc_list)
         print('\n' + '=' * 34)
-        print("||  INFO: Val accuracy: {:.5f} ||".format(mean_acc))
+        print("||  INFO: Val Accuracy: {:.5f} ||".format(mean_acc))
+        print("||  INFO: Val Loss:      {:.5f} ||".format(mean_loss))
         print("||  INFO: Val AUC:      {:.5f} ||".format(mean_auc))
         print('=' * 34)
 
-    def coupled_data_to_dict(self, train_images, train_labels, is_training):
+    def coupled_data_to_dict(self, images, labels, is_training):
         return {
-                self.images_placeholder: train_images,
-                self.labels_placeholder: train_labels,
+                self.images_placeholder: images,
+                self.labels_placeholder: labels,
                 self.is_training_placeholder: is_training
                 }
 
     def process_coupled_data(self, coupled_data):
         data = []
         labels = []
-        for cur_file, label in coupled_data:
-            # try:
-            result = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
-            print("\nINFO: Loading image from {}".format(cur_file))
-            scan_arr = np.load(join(self.data_dir, cur_file)).astype(np.float32)
-            print('\nINFO Orig image shape:', scan_arr.shape)
-            result[:self.num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
-                scan_arr[:self.num_frames, :self.crop_size, :self.crop_size, :3]
-            # except Exception as e:
-            #     print("\ERROR Loading image from {} with shape {}".format(cur_file, scan_arr.shape))
-            #     raise e
 
-            data.append(result)
-            labels.append(label)
+        for cur_file, label in tqdm(coupled_data):
+            try:
+                result = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
+                # print("\nINFO: Loading image from {}".format(cur_file))
+                scan_arr = np.load(join(self.data_dir, cur_file)).astype(np.float32)
+                # print('\nINFO Orig image shape:', scan_arr.shape)
+                result[:self.num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
+                    scan_arr[:self.num_frames, :self.crop_size, :self.crop_size, :3]
+                data.append(result)
+                labels.append(label)
+
+            except Exception as e:
+                # TODO: filter images which are too small
+                print("\nERROR Loading image from {} with shape {}".format(cur_file, scan_arr.shape))
+                print(e)
+
+
         np_arr_data = np.array(data)
-        np_arr_labels = np.array(labels).astype(np.int64).reshape(len(coupled_data))
+        np_arr_labels = np.array(labels).astype(np.int64)
         return np_arr_data, np_arr_labels
 
 
@@ -236,7 +258,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--gpu_id', default="0", type=str, help='gpu id')
 
-    parser.add_argument('--epochs', default=2, type=int,  help='the number of epochs')
+    parser.add_argument('--epochs', default=35, type=int,  help='the number of epochs')
 
     parser.add_argument('--select_device', default='GPU', type=str, help='the device to execute on')
 
