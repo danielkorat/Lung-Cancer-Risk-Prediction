@@ -62,6 +62,8 @@ def main(args):
     print('\nINFO: Processing validation data')
     val_images, val_labels = model.process_coupled_data(val_list)
 
+    write_number_list(val_labels, 'val_true')
+
     if args.inference_mode:
         print('\nINFO: Begin Inference Mode \n')
         # Shuffle Validation Set
@@ -72,6 +74,7 @@ def main(args):
     else:
         print('\nINFO: Begin Training \n')
 
+        tr_loss, tr_acc, val_loss, val_acc, val_auc = [], [], [], [], []
         for epoch in range(args.epochs):
             print("\nINFO: +++++++++++++++++++++ EPOCH ", epoch + 1)
             start_time = time()
@@ -80,8 +83,9 @@ def main(args):
             shuffle(train_list)
 
             # Run training for 1 epoch
-            model.train_loop(train_list)
-
+            tr_epoch_loss, tr_epoch_acc = model.train_loop(train_list)
+            
+            extend_and_write((tr_loss, tr_epoch_loss, 'tr_loss'), (tr_acc, tr_epoch_acc, 'tr_acc'))
             # Save Weights after each epoch
             # print("\nINFO: Saving Weights")
             # model_saver.save(sess, "{}/trained_model_{}.ckpt".format(model_path, epoch))
@@ -91,10 +95,23 @@ def main(args):
 
             # Start validation phase at end of each epoch
             print("\nINFO: Begin Validation")
-            model.val_loop(val_images, val_labels)
+            val_epoch_loss, val_epoch_acc, val_epoch_auc, val_preds = model.val_loop(val_images, val_labels)
+            extend_and_write((val_loss, [val_epoch_loss], 'val_loss'), (val_acc, [val_epoch_acc], 'val_acc'),
+                (val_auc, [val_epoch_auc], 'val_auc'), (val_preds, [val_preds], 'val_preds/epoch_{}'.format(epoch)))
+
             print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
 
+def write_number_list(lst, f_name):
+    print('INFO: Saving to :' + f_name + '.npz ...')
+    print(lst)
+    np.savez(f_name + '.npz', np.array(lst))       
 
+def extend_and_write(*args):
+    for lst, new_lst, f_name in args:
+        print(lst, '\n', new_lst, '\n', f_name)
+        n = [_ for _ in new_lst]
+        lst.extend(n)
+        write_number_list(lst, f_name)
 
 class I3dForCTVolumes:
     def __init__(self, data_dir, batch_size, learning_rate=0.0001, device='GPU', num_frames=140, crop_size=224):
@@ -167,20 +184,23 @@ class I3dForCTVolumes:
             self.sess.run(init)
 
     def train_loop(self, data_list):
+        loss_list, acc_list = [], []
         for i, list_batch in tqdm(enumerate(list(batcher(data_list, self.batch_size)))):
             # print('\nINFO: ========== STEP', i + 1)
             images_batch, labels_batch = self.process_coupled_data(list_batch)
-
             feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=True)
-
             self.sess.run(self.train_op, feed_dict=feed_dict)
             # res = self.sess.run([self.train_op, self.accuracy, self.loss], feed_dict=feed_dict)
 
-            if i % 30 == 0:
+            if i % 50 == 0:
                 feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=False)
                 acc, loss = self.sess.run([self.accuracy, self.loss], feed_dict=feed_dict)
-                print("\nINFO Train accuracy: {:.5f}".format(acc))
-                print("\nINFO Train loss: {:.5f}".format(loss)) 
+                loss_list.append(loss)
+                acc_list.append(acc)
+                print("\nINFO Train accuracy: {:.4f}".format(acc))
+                print("\nINFO Train loss: {:.4f}".format(loss))
+                
+        return loss_list, acc_list
 
     def val_loop(self, images, labels):
         acc_list = []
@@ -190,13 +210,14 @@ class I3dForCTVolumes:
 
         for image_batch, label_batch in tqdm(list(zip(batcher(images, self.batch_size), batcher(labels, self.batch_size)))):
             feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=False)
-            acc, auc, loss, preds = self.sess.run([self.accuracy, self.auc, self.loss, self.get_preds], feed_dict=feed_dict)
-            acc_list.append(acc)
-            loss_list.append(loss)
+            batch_acc, batch_loss, preds = self.sess.run([self.accuracy, self.loss, self.get_preds], feed_dict=feed_dict)
+            acc_list.append(batch_acc)
+            loss_list.append(batch_loss)
             preds_list.extend(preds)
 
-        print('\nDEBUG: Val Batch preds: ', preds_list)
-        print('\nDEBUG: Val Batch labels: ', labels)
+        print('\nDEBUG: Val. preds: ', preds_list)
+        print('\nDEBUG: Val. labels: ', labels)
+
         print('\nDEBUG: Val Batch accuracy: ', acc_list)
         print('\nDEBUG: Val Batch Loss: ', loss_list)
         mean_acc = np.mean(acc_list)
@@ -204,10 +225,12 @@ class I3dForCTVolumes:
         auc_score = roc_auc_score(labels, preds_list)
 
         print('\n' + '=' * 34)
-        print("||  INFO: Val Accuracy: {:.5f} ||".format(mean_acc))
-        print("||  INFO: Val Loss:      {:.5f} ||".format(mean_loss))
-        print("||  INFO: Val AUC:      {:.5f} ||".format(auc_score))
+        print("||  INFO: Val Accuracy: {:.4f} ||".format(mean_acc))
+        print("||  INFO: Val Loss:     {:.4f} ||".format(mean_loss))
+        print("||  INFO: Val AUC:      {:.4f} ||".format(auc_score))
         print('=' * 34)
+
+        return mean_loss, mean_acc, auc_score, preds_list
 
     def coupled_data_to_dict(self, images, labels, is_training):
         return {
@@ -220,7 +243,7 @@ class I3dForCTVolumes:
         data = []
         labels = []
 
-        for cur_file, label in tqdm(coupled_data):
+        for cur_file, label in coupled_data:
             try:
                 result = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
                 # print("\nINFO: Loading image from {}".format(cur_file))
@@ -243,19 +266,25 @@ class I3dForCTVolumes:
 
 
 if __name__ == "__main__":
-    # Parse the command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', default=str(dirname(realpath(__file__))) + '/data', help='path to training data')
 
-    parser.add_argument('--debug', default='md', type=str, help='which debug dataset to run')
+    ########################################################
+
+    parser.add_argument('--epochs', default=80, type=int,  help='the number of epochs')
+
+    parser.add_argument('--batch_size', default=3, type=int, help='the training batch size')
+
+    parser.add_argument('--debug', default='', type=str, help='which debug dataset to run')
+
+    ########################################################
 
     parser.add_argument('--train', default='train.list', help='path to training data')
 
     parser.add_argument('--test', default='test.list', help='path to training data')
 
     parser.add_argument('--gpu_id', default="0", type=str, help='gpu id')
-
-    parser.add_argument('--epochs', default=60, type=int,  help='the number of epochs')
+    
+    parser.add_argument('--data_dir', default=str(dirname(realpath(__file__))) + '/data', help='path to training data')
 
     parser.add_argument('--select_device', default='GPU', type=str, help='the device to execute on')
 
@@ -265,7 +294,6 @@ if __name__ == "__main__":
 
     parser.add_argument('--inference_mode', default=False, type=bool, help='whether to run inference only')
 
-    parser.add_argument('--batch_size', default=3, type=int, help='the training batch size')
 
     parser.set_defaults()
     main(parser.parse_args())
