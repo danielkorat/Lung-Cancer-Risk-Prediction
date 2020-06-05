@@ -62,7 +62,7 @@ def main(args):
     print('\nINFO: Processing validation data')
     val_images, val_labels = model.process_coupled_data(val_list)
 
-    write_number_list(val_labels, 'val_true')
+    write_number_list(val_labels, 'out/val_true')
 
     if args.inference_mode:
         print('\nINFO: Begin Inference Mode \n')
@@ -111,7 +111,7 @@ def extend_and_write(*args):
         print(lst, '\n', new_lst, '\n', f_name)
         n = [_ for _ in new_lst]
         lst.extend(n)
-        write_number_list(lst, f_name)
+        write_number_list(lst, 'out/' + f_name)
 
 class I3dForCTVolumes:
     def __init__(self, data_dir, batch_size, learning_rate=0.0001, device='GPU', num_frames=140, crop_size=224):
