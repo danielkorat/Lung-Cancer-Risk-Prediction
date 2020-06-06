@@ -60,7 +60,7 @@ def main(args):
     print('\nINFO: Processing validation data')
     val_images, val_labels = model.process_coupled_data(val_list)
 
-    write_number_list(val_labels, 'val_true')
+    write_number_list(val_labels, 'out/val_true')
 
     if args.inference_mode:
         print('\nINFO: Begin Inference Mode \n')
