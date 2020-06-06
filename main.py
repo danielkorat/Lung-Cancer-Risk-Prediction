@@ -146,14 +146,14 @@ class I3dForCTVolumes:
 
             # Init I3D model
             with tf.device('/device:' + device + ':0'):
-                
                 with tf.compat.v1.variable_scope('RGB'):
                     _, end_points = InceptionI3d(num_classes=2, final_endpoint='Predictions')(self.images_placeholder, self.is_training_placeholder)
-
                 self.logits = end_points['Logits']
                 self.preds = end_points['Predictions']
+
                 # Loss function
-                self.loss = utils.cross_entropy_loss(self.logits, self.labels_placeholder)
+                # self.loss = utils.cross_entropy_loss(self.logits, self.labels_placeholder)
+                self.loss = focal_loss(self.logits, self.labels_placeholder)
 
                 # Evaluation metrics
                 self.get_preds = utils.get_preds(self.preds)
@@ -270,7 +270,7 @@ if __name__ == "__main__":
 
     ########################################################
 
-    parser.add_argument('--epochs', default=2, type=int,  help='the number of epochs')
+    parser.add_argument('--epochs', default=1, type=int,  help='the number of epochs')
 
     parser.add_argument('--batch_size', default=3, type=int, help='the training batch size')
 
