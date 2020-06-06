@@ -3,15 +3,13 @@
 ## Overview
 
 This repository contains an implementation of the "full-volume" model from the paper:  
-[Ardila, D., Kiraly, A.P., Bharadwaj, S. et al. <br/>End-to-end lung cancer screening with 
-three-dimensional deep learning on low-dose chest computed tomography. <br/> Nat Med 25, 954–961 (2019).](https://doi.org/10.1038/s41591-019-0447-x)  
+[End-to-end lung cancer screening with 
+three-dimensional deep learning on low-dose chest computed tomography. ](https://doi.org/10.1038/s41591-019-0447-x)<br/> Ardila, D., Kiraly, A.P., Bharadwaj, S. et al. Nat Med 25, 954–961 (2019).  
 The model uses a three-dimensional (3D) CNN to perform end-to-end analysis of whole-CT volumes, using LDCT
 volumes with pathology-confirmed cancer as training data.
-The CNN architecture is Inflated 3D ConvNet (I3D) from "[Quo Vadis,
-Action Recognition? A New Model and the Kinetics
-Dataset](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadis_Action_CVPR_2017_paper.html)" by Joao Carreira and Andrew
-Zisserman. 
-The [ImageNet pre-trained Inception V1 model](http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz) is inflated to 3D and then fine-tuned on pathology-confirmed CTs from the NLST dataset.
+The CNN architecture is Inflated 3D ConvNet (I3D) ([Carreira and
+Zisserman](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadis_Action_CVPR_2017_paper.html))
+The [ImageNet pre-trained Inception V1 model](http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz) is inflated to 3D and then fine-tuned on pathology-confirmed CTs from the [NLST dataset](https://biometry.nci.nih.gov/cdas/learn/nlst/images/).
 
 The repository also includes a pre-trained checkpoint using rgb inputs and trained from scratch on Kinetics-600.
 
@@ -23,10 +21,12 @@ Disclaimer: This is not an official product.
 
 Then, clone this repository using
 
-`$ git clone https://github.com/danielkorat/Lung-Cancer-Risk-Prediction`
-`$ cd Lung-Cancer-Risk-Prediction`
-`$ pip install -U pip`
-`$ pip install -r requirements.txt`
+```
+$ git clone https://github.com/danielkorat/Lung-Cancer-Risk-Prediction
+$ cd Lung-Cancer-Risk-Prediction
+$ pip install -U pip
+$ pip install -r requirements.txt
+```
 
 ### Sample code
 
