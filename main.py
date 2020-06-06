@@ -34,7 +34,7 @@ def main(args):
     # Create model dir and log dir if thry doesn't exist
     os.makedirs(args.save_dir, exist_ok=True)
     os.makedirs(args.logs_dir, exist_ok=True)
-    os.makedirs(args.logs_dir / 'val_preds', exist_ok=True)
+    os.makedirs(args.logs_dir + '/val_preds', exist_ok=True)
 
     # Create train and dev sets
     print("Creating training and validation sets")
@@ -63,18 +63,18 @@ def main(args):
     write_number_list(val_labels, 'out/val_true')
 
     if args.inference_mode:
-        print('\nINFO: Begin Inference Mode \n')
-        # Shuffle Validation Set
-        shuffle(dev)
+        print('\nINFO: Begin Inference Mode')
+
         # Run Inference Mode
-        model.inference_mode(sess, dev, [vocab_dict, vocab_rev],
+        model.inference_mode(model.sess, dev, [vocab_dict, vocab_rev],
                             num_examples=args.num_examples, dropout=1.0)
     else:
-        print('\nINFO: Begin Training \n')
+        print('\nINFO: Begin Training')
 
-        tr_loss, tr_acc, val_loss, val_acc, val_auc = [], [], [], [], []
-        for epoch in range(args.epochs):
-            print("\nINFO: +++++++++++++++++++++ EPOCH ", epoch + 1)
+        metrics_lists = tr_loss, tr_acc, val_loss, val_acc, val_auc = [], [], [], [], []
+        
+        for epoch in range(1, args.epochs + 1):
+            print("\nINFO: +++++++++++++++++++++ EPOCH ", epoch)
             start_time = time()
 
             # Shuffle Dataset
@@ -85,7 +85,7 @@ def main(args):
 
             # Save Weights after each epoch
             print("\nINFO: Saving Weights")
-            model.saver.save(sess, "{}/epoch_{}.ckpt".format(args.save_dir, epoch))
+            model.saver.save(model.sess, "{}/epoch_{}/model.ckpt".format(args.save_dir, epoch))
             
             train_end_time = time()
             print('\nINFO: Train Epoch duration: {:.2f} secs'.format(train_end_time - start_time))
@@ -95,9 +95,10 @@ def main(args):
             val_metrics = model.val_loop(val_images, val_labels)
 
             print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
-            write_metrics(tr_metrics, val_metrics, args.logs_dir)
+            write_metrics(metrics_lists, tr_metrics, val_metrics, args.logs_dir, epoch)
 
-def write_metrics(tr_metrics, val_metrics, out_dir):
+def write_metrics(metrics_lists, tr_metrics, val_metrics, out_dir, epoch):
+    tr_loss, tr_acc, val_loss, val_acc, val_auc = metrics_lists
     tr_epoch_loss, tr_epoch_acc = tr_metrics
     val_epoch_loss, val_epoch_acc, val_epoch_auc, val_epoch_preds = val_metrics
 

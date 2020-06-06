@@ -32,8 +32,7 @@ def write_number_list(lst, f_name):
 def append_and_write(*args):
     for lst, new_item, f_name in args:
         print(f_name + ' :', '\n', 'Items:', lst, '\n New item:', new_item)
-        n = [_ for _ in new_item]
-        lst.append(n)
+        lst.append(new_item)
         write_number_list(lst, f_name)
 
 def batcher(iterable, batch_size=1):
