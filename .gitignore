@@ -139,9 +139,12 @@ dmypy.json
 *.npy
 *.meta
 *.DS_Store
+*.npz
 
 data/checkpoints
 data/datasets
 
 visual_logs/
 models/
+out/
+trained_model/
