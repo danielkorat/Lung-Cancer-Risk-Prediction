@@ -9,14 +9,12 @@ This repository contains an implementation of the "full-volume" model from the p
 The model uses a three-dimensional (3D) CNN to perform end-to-end analysis of whole-CT volumes, using LDCT
 volumes with pathology-confirmed cancer as training data. 
 The CNN architecture is Inflated 3D ConvNet (I3D) ([Carreira and
-Zisserman](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadis_Action_CVPR_2017_paper.html))
-
-The repository also includes a pre-trained checkpoint `data/checkpoints`, which achieves a score of AUC 90.0 on a subset of NLST with 2,000 CT images. Data can only be made available by NLST and requires approval.
+Zisserman](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadis_Action_CVPR_2017_paper.html)).
 
 Disclaimer: This is not an official product.
 
 ## Data
-We use the NLST dataset which cintains chest LDCT volumes with pathology-confirmed cancer evaluations. For description and access to the dataset refer to [NCI website](https://biometry.nci.nih.gov/cdas/learn/nlst/images/).
+We use the NLST dataset which cintains chest LDCT volumes with pathology-confirmed cancer evaluations. For description and access to the dataset refer to the [NCI website](https://biometry.nci.nih.gov/cdas/learn/nlst/images/).
 
 ### Setup
 
@@ -36,9 +34,8 @@ $ pip install -r requirements.txt
 
 
 ### Provided checkpoint
-The model is pre-trained on ImageNet and then NLST for binary classification.
-The directory `data/checkpoints` contains the best checkpoint that was
-trained. The [ImageNet pre-trained Inception V1 model](http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz) is inflated to 3D and then fine-tuned on pathology-confirmed CTs from NLST. This checkpoint is initialized by bootstrapping the filters from a [2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D,
+The repository also includes a pre-trained checkpoint in `data/checkpoints`, which wastrained on a subset of NLST with 2,000 CT images. The model is pre-trained on ImageNet and then NLST for binary classification.
+The [ImageNet pre-trained Inception V1 model](http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz) is inflated to 3D and then fine-tuned on pathology-confirmed CTs from NLST. This checkpoint is initialized by bootstrapping the filters from a [2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D,
 as described in the paper.
 
 The model is initialized by bootstrapping the filters from a [ImageNet pre-trained 2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D,
@@ -53,7 +50,12 @@ We train the model for ???k steps (?? epochs).
 ### Data Preprocessing
 Each CT volume downloaded from NLST is a folder of DICOM files (one per slice).
 The `preprocess.py` module accepts a directory `path/to/data` containing multiple CT volumes, performs several preprocessing steps on each volume, and saves each preprocessed volume as 3D `.npy` file in `path/to/data_preprocssed`.
-The preprocessing steps include: Resampling to 1.0mm^3 voxels, windowing, lung segmentation and centering, RGB normalization.
+The preprocessing steps use methods from [this](https://www.kaggle.com/gzuidhof/full-preprocessing-tutorial/notebook) tutorial and include:
+
+1. Resampling to a 1mm voxel size
+2. Coarse lung segmentation – used to compute lung center for alignment
+3. Windowing – clip pixel values to focus on lung volume
+4. RGB normalization
 
 ### Acknowledgments
 
