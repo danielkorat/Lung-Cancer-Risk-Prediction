@@ -145,7 +145,7 @@ class I3dForCTVolumes:
 
                 # Loss function
                 # self.loss = utils.cross_entropy_loss(self.logits, self.labels_placeholder)
-                self.loss = focal_loss(self.logits, self.labels_placeholder)
+                self.loss = focal_loss(self.logits[:, 1], self.labels_placeholder)
 
                 # Evaluation metrics
                 self.get_preds = get_preds(self.preds)

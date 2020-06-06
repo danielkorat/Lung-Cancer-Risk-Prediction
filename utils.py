@@ -25,7 +25,7 @@ import numpy as np
 
 
 def write_number_list(lst, f_name):
-    print('INFO: Saving to :' + f_name + '.npz ...')
+    print('INFO: Saving' + f_name + '.npz ...')
     print(lst)
     np.savez(f_name + '.npz', np.array(lst))       
 
@@ -105,21 +105,24 @@ def focal_loss(logits, labels, alpha=0.75, gamma=2):
     Returns:
       A tensor of the same shape as `lables`
     """
+    print('focal Loss variables:')
+    print('labels.shape:\n\n\n', labels.shape)
+    print('logits.shape:\n\n\n', logits.shape)
     y_pred = tf.nn.sigmoid(logits)
     labels = tf.to_float(labels)
     losses = -(labels * (1 - alpha) * ((1 - y_pred) * gamma) * tf.log(y_pred)) - \
         (1 - labels) * alpha * (y_pred ** gamma) * tf.log(1 - y_pred)
     return tf.reduce_mean(losses)
 
-# def cross_entropy_loss(logits, labels):
-#     print('Loss variables:')
-#     print('labels:', labels)
-#     print('logits:', logits)
-#     print('logits.shape:', logits.shape)
-#     cross_entropy_mean = tf.reduce_mean(
-#                   tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits)
-#                   )
-#     return cross_entropy_mean
+def cross_entropy_loss(logits, labels):
+    print('CE Loss variables:')
+    print('labels:', labels)
+    print('logits:', logits)
+    print('logits.shape:', logits.shape)
+    cross_entropy_mean = tf.reduce_mean(
+                  tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits)
+                  )
+    return cross_entropy_mean
 
 
 def accuracy(logit, labels):
