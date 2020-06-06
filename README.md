@@ -11,7 +11,7 @@ volumes with pathology-confirmed cancer as training data.
 The CNN architecture is Inflated 3D ConvNet (I3D) ([Carreira and
 Zisserman](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadis_Action_CVPR_2017_paper.html)).
 
-## Data
+### Data
 We use the NLST dataset which cintains chest LDCT volumes with pathology-confirmed cancer evaluations. For description and access to the dataset refer to the [NCI website](https://biometry.nci.nih.gov/cdas/learn/nlst/images/).
 
 ### Setup
