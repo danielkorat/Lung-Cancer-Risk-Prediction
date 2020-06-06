@@ -3,19 +3,20 @@
 ## Overview
 
 This repository contains an implementation of the "full-volume" model from the paper:  
-[End-to-end lung cancer screening with 
-three-dimensional deep learning on low-dose chest computed tomography. ](https://doi.org/10.1038/s41591-019-0447-x)<br/> Ardila, D., Kiraly, A.P., Bharadwaj, S. et al. Nat Med 25, 954–961 (2019).  
+
+[End-to-end lung cancer screening with three-dimensional deep learning on low-dose chest computed tomography.](https://doi.org/10.1038/s41591-019-0447-x)<br/> Ardila, D., Kiraly, A.P., Bharadwaj, S. et al. Nat Med 25, 954–961 (2019).
+
 The model uses a three-dimensional (3D) CNN to perform end-to-end analysis of whole-CT volumes, using LDCT
-volumes with pathology-confirmed cancer as training data.
+volumes with pathology-confirmed cancer as training data. 
 The CNN architecture is Inflated 3D ConvNet (I3D) ([Carreira and
 Zisserman](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadis_Action_CVPR_2017_paper.html))
-The [ImageNet pre-trained Inception V1 model](http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz) is inflated to 3D and then fine-tuned on pathology-confirmed CTs from the [NLST dataset](https://biometry.nci.nih.gov/cdas/learn/nlst/images/).
 
-The repository also includes a pre-trained checkpoint using rgb inputs and trained from scratch on Kinetics-600.
+The repository also includes a pre-trained checkpoint `data/checkpoints`, which achieves a score of AUC 90.0 on a subset of NLST with 2,000 CT images. Data can only be made available by NLST and requires approval.
 
 Disclaimer: This is not an official product.
 
-## Running the code
+## Data
+We use the NLST dataset which cintains chest LDCT volumes with pathology-confirmed cancer evaluations. For description and access to the dataset refer to [NCI website](https://biometry.nci.nih.gov/cdas/learn/nlst/images/).
 
 ### Setup
 
@@ -28,70 +29,31 @@ $ pip install -U pip
 $ pip install -r requirements.txt
 ```
 
+## Running the code
+
+
 ### Sample code
 
-### Running the test
 
-The test file can be run using
+### Provided checkpoint
+The model is pre-trained on ImageNet and then NLST for binary classification.
+The directory `data/checkpoints` contains the best checkpoint that was
+trained. The [ImageNet pre-trained Inception V1 model](http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz) is inflated to 3D and then fine-tuned on pathology-confirmed CTs from NLST. This checkpoint is initialized by bootstrapping the filters from a [2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D,
+as described in the paper.
 
-`$ python i3d_test.py`
+The model is initialized by bootstrapping the filters from a [ImageNet pre-trained 2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D,
+as described in the paper.
+It is then trained on the preprocessed CT volumes to predict cancer within 1 year, fine-tuning from the pretrained checkpoint mentioned above. Each of these volumes was a large region cropped around the center of the bounding box, as determined by lung segmentation in the preprocessing stage. We use focal loss to try to mitigate the sparsity of positive examples.
 
-This checks that the model can be built correctly and produces correct shapes.
+We train using `tf.train.AdamOptimizer`. During training, we use ?.? dropout, with a
+minibatch size of 3. The optimizer uses learning rate of 1e-4, with and exponential decay rate of 0.1.
+We train the model for ???k steps (?? epochs).
 
-## Further details
 
-### Provided checkpoints
-
-The default model has been pre-trained on ImageNet and then Kinetics; other
-flags allow for loading a model pre-trained only on Kinetics and for selecting
-only the RGB or Flow stream. The script `multi_evaluate.sh` shows how to run all
-these combinations, generating the sample output in the `out/` directory.
-
-The directory `data/checkpoints` contains the four checkpoints that were
-trained. The ones just trained on Kinetics are initialized using the default
-Sonnet / TensorFlow initializers, while the ones pre-trained on ImageNet are
-initialized by bootstrapping the filters from a 2D Inception-v1 model into 3D,
-as described in the paper. Importantly, the RGB and Flow streams are trained
-separately, each with a softmax classification loss. During test time, we
-combine the two streams by adding the logits with equal weighting, as shown in
-the `evalute_sample.py` code.
-
-We train using synchronous SGD using `tf.train.SyncReplicasOptimizer`. For each
-of the RGB and Flow streams, we aggregate across 64 replicas with 4 backup
-replicas. During training, we use 0.5 dropout and apply BatchNorm, with a
-minibatch size of 6. The optimizer used is SGD with a momentum value of 0.9, and
-we use 1e-7 weight decay. The RGB and Flow models are trained for 115k and 155k
-steps respectively, with the following learning rate schedules.
-
-RGB:
-
-*   0 - 97k: 1e-1
-*   97k - 108k: 1e-2
-*   108k - 115k: 1e-3
-
-Flow:
-
-*   0 - 97k: 1e-1
-*   97k - 104.5k: 1e-2
-*   104.5k - 115k: 1e-3
-*   115k - 140k: 1e-1
-*   140k - 150k: 1e-2
-*   150k - 155k: 1e-3
-
-This is because the Flow models were determined to require more training after
-an initial run of 115k steps.
-
-The models are trained using the training split of Kinetics. On the Kinetics
-test set, we obtain the following top-1 / top-5 accuracy:
-
-Model          | ImageNet + Kinetics | Kinetics
--------------- | :-----------------: | -----------
-RGB-I3D        | 71.1 / 89.3         | 68.4 / 88.0
-Flow-I3D       | 63.4 / 84.9         | 61.5 / 83.4
-Two-Stream I3D | 74.2 / 91.3         | 71.6 / 90.0
-
-### Sample data and preprocessing
-
+### Data Preprocessing
+Each CT volume downloaded from NLST is a folder of DICOM files (one per slice).
+The `preprocess.py` module accepts a directory `path/to/data` containing multiple CT volumes, performs several preprocessing steps on each volume, and saves each preprocessed volume as 3D `.npy` file in `path/to/data_preprocssed`.
+The preprocessing steps include: Resampling to 1.0mm^3 voxels, windowing, lung segmentation and centering, RGB normalization.
 
 ### Acknowledgments
 
