@@ -24,6 +24,18 @@ import math
 import numpy as np
 
 
+def write_number_list(lst, f_name):
+    print('INFO: Saving to :' + f_name + '.npz ...')
+    print(lst)
+    np.savez(f_name + '.npz', np.array(lst))       
+
+def append_and_write(*args):
+    for lst, new_item, f_name in args:
+        print(f_name + ' :', '\n', 'Items:', lst, '\n New item:', new_item)
+        n = [_ for _ in new_item]
+        lst.append(n)
+        write_number_list(lst, f_name)
+
 def batcher(iterable, batch_size=1):
     iter_len = len(iterable)
     for i in range(0, iter_len, batch_size):
@@ -105,15 +117,15 @@ def get_preds(preds):
 def get_logits(logits):
     return logits
 
-def _variable_on_cpu(name, shape, initializer):
-    with tf.device('/cpu:0'):
-        var = tf.get_variable(name, shape, initializer=initializer)
-    return var
+# def _variable_on_cpu(name, shape, initializer):
+#     with tf.device('/cpu:0'):
+#         var = tf.get_variable(name, shape, initializer=initializer)
+#     return var
 
 
-def _variable_with_weight_decay(name, shape, wd):
-    var = _variable_on_cpu(name, shape, tf.contrib.layers.xavier_initializer())
-    if wd is not None:
-        weight_decay = tf.nn.l2_loss(var)*wd
-        tf.add_to_collection('weightdecay_losses', weight_decay)
-    return var
+# def _variable_with_weight_decay(name, shape, wd):
+#     var = _variable_on_cpu(name, shape, tf.contrib.layers.xavier_initializer())
+#     if wd is not None:
+#         weight_decay = tf.nn.l2_loss(var)*wd
+#         tf.add_to_collection('weightdecay_losses', weight_decay)
+#     return var

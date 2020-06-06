@@ -18,8 +18,7 @@ from __future__ import print_function
 from random import shuffle
 import os
 import numpy as np
-import utils
-from utils import batcher 
+from utils import * 
 import argparse
 import tensorflow as tf
 from i3d import InceptionI3d
@@ -32,10 +31,10 @@ def main(args):
     # Set GPU
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
 
-    # Create model dir if it doesn't exist
-    if not os.path.exists(args.model_dir):
-        os.makedirs(args.model_dir)
-    model_path = args.model_dir
+    # Create model dir and log dir if thry doesn't exist
+    os.makedirs(args.save_dir, exist_ok=True)
+    os.makedirs(args.logs_dir, exist_ok=True)
+    os.makedirs(args.logs_dir / 'val_preds', exist_ok=True)
 
     # Create train and dev sets
     print("Creating training and validation sets")
@@ -48,14 +47,13 @@ def main(args):
     train_list_path = join(args.data_dir, 'lists', train_list)
     test_list_path = join(args.data_dir, 'lists', test_list)
     
-    train_list = utils.load_data_list(train_list_path)
-    val_list = utils.load_data_list(test_list_path)
+    train_list = load_data_list(train_list_path)
+    val_list = load_data_list(test_list_path)
 
     model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, device=args.select_device)
 
     # Intitialze with pretrained weights
     print('\nINFO: Loading from previously stored session \n')
-    # pretrained_saver.restore(sess, model_ckpt.model_checkpoint_path)
     model.pretrained_saver.restore(model.sess, join(args.data_dir, args.ckpt))
     print('\nINFO: Loaded pretrained model')
 
@@ -83,35 +81,30 @@ def main(args):
             shuffle(train_list)
 
             # Run training for 1 epoch
-            tr_epoch_loss, tr_epoch_acc = model.train_loop(train_list)
-            
-            extend_and_write((tr_loss, tr_epoch_loss, 'tr_loss'), (tr_acc, tr_epoch_acc, 'tr_acc'))
+            tr_metrics = model.train_loop(train_list)
+
             # Save Weights after each epoch
-            # print("\nINFO: Saving Weights")
-            # model_saver.save(sess, "{}/trained_model_{}.ckpt".format(model_path, epoch))
+            print("\nINFO: Saving Weights")
+            model.saver.save(sess, "{}/epoch_{}.ckpt".format(args.save_dir, epoch))
             
             train_end_time = time()
             print('\nINFO: Train Epoch duration: {:.2f} secs'.format(train_end_time - start_time))
 
             # Start validation phase at end of each epoch
             print("\nINFO: Begin Validation")
-            val_epoch_loss, val_epoch_acc, val_epoch_auc, val_preds = model.val_loop(val_images, val_labels)
-            extend_and_write((val_loss, [val_epoch_loss], 'val_loss'), (val_acc, [val_epoch_acc], 'val_acc'),
-                (val_auc, [val_epoch_auc], 'val_auc'), (val_preds, [val_preds], 'val_preds/epoch_{}'.format(epoch)))
+            val_metrics = model.val_loop(val_images, val_labels)
 
             print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
+            write_metrics(tr_metrics, val_metrics, args.logs_dir)
 
-def write_number_list(lst, f_name):
-    print('INFO: Saving to :' + f_name + '.npz ...')
-    print(lst)
-    np.savez(f_name + '.npz', np.array(lst))       
+def write_metrics(tr_metrics, val_metrics, out_dir):
+    tr_epoch_loss, tr_epoch_acc = tr_metrics
+    val_epoch_loss, val_epoch_acc, val_epoch_auc, val_epoch_preds = val_metrics
 
-def extend_and_write(*args):
-    for lst, new_lst, f_name in args:
-        print(lst, '\n', new_lst, '\n', f_name)
-        n = [_ for _ in new_lst]
-        lst.extend(n)
-        write_number_list(lst, f_name)
+    append_and_write((tr_loss, tr_epoch_loss, out_dir + '/tr_loss'), (tr_acc, tr_epoch_acc, out_dir + '/tr_acc'))
+    append_and_write((val_loss, val_epoch_loss, out_dir + '/val_loss'), (val_acc, val_epoch_acc, out_dir + '/val_acc'),
+        (val_auc, val_epoch_auc, out_dir + '/val_auc'))
+    write_number_list(val_epoch_preds, out_dir + '/val_preds/epoch_{}'.format(epoch))
 
 class I3dForCTVolumes:
     def __init__(self, data_dir, batch_size, learning_rate=0.0001, device='GPU', num_frames=140, crop_size=224):
@@ -129,14 +122,12 @@ class I3dForCTVolumes:
                     )
 
             # Placeholders
-            self.images_placeholder, self.labels_placeholder, self.is_training_placeholder = utils.placeholder_inputs(
+            self.images_placeholder, self.labels_placeholder, self.is_training_placeholder = placeholder_inputs(
                     batch_size=self.batch_size,
                     num_frame_per_clip=self.num_frames,
                     crop_size=self.crop_size,
                     rgb_channels=3
                     )
-
-            # self.lr = tf.train.exponential_decay(learning_rate, self.global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
             
             # Learning rate
             learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
@@ -153,12 +144,12 @@ class I3dForCTVolumes:
                 self.logits = end_points['Logits']
                 self.preds = end_points['Predictions']
                 # Loss function
-                self.loss = utils.cross_entropy_loss(self.logits, self.labels_placeholder)
+                self.loss = cross_entropy_loss(self.logits, self.labels_placeholder)
 
                 # Evaluation metrics
-                self.get_preds = utils.get_preds(self.preds)
-                self.get_logits = utils.get_logits(self.logits)
-                self.accuracy = utils.accuracy(self.logits, self.labels_placeholder)
+                self.get_preds = get_preds(self.preds)
+                self.get_logits = get_logits(self.logits)
+                self.accuracy = accuracy(self.logits, self.labels_placeholder)
                 self.auc = tf.metrics.auc(self.labels_placeholder, self.preds[:, 1])
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -175,7 +166,10 @@ class I3dForCTVolumes:
                     pretrained_variable_map[variable.name.replace(':0', '')] = variable
             self.pretrained_saver = tf.train.Saver(var_list=pretrained_variable_map, reshape=True)
 
-            # init = tf.global_variables_initializer()
+            # Create a saver for writing training checkpoints.
+            self.saver = tf.train.Saver()
+
+            # Init local and global vars
             init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 
             # Create a session for running Ops on the Graph.
@@ -186,21 +180,19 @@ class I3dForCTVolumes:
     def train_loop(self, data_list):
         loss_list, acc_list = [], []
         for i, list_batch in tqdm(enumerate(list(batcher(data_list, self.batch_size)))):
-            # print('\nINFO: ========== STEP', i + 1)
             images_batch, labels_batch = self.process_coupled_data(list_batch)
             feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=True)
             self.sess.run(self.train_op, feed_dict=feed_dict)
-            # res = self.sess.run([self.train_op, self.accuracy, self.loss], feed_dict=feed_dict)
 
-            if i % 50 == 0:
+            if i % 20 == 0:
                 feed_dict = self.coupled_data_to_dict(images_batch, labels_batch, is_training=False)
                 acc, loss = self.sess.run([self.accuracy, self.loss], feed_dict=feed_dict)
                 loss_list.append(loss)
                 acc_list.append(acc)
                 print("\nINFO Train accuracy: {:.4f}".format(acc))
                 print("\nINFO Train loss: {:.4f}".format(loss))
-                
-        return loss_list, acc_list
+
+        return np.mean(loss_list), np.mean(acc_list)
 
     def val_loop(self, images, labels):
         acc_list = []
@@ -270,11 +262,11 @@ if __name__ == "__main__":
 
     ########################################################
 
-    parser.add_argument('--epochs', default=80, type=int,  help='the number of epochs')
+    parser.add_argument('--epochs', default=2, type=int,  help='the number of epochs')
 
     parser.add_argument('--batch_size', default=3, type=int, help='the training batch size')
 
-    parser.add_argument('--debug', default='', type=str, help='which debug dataset to run')
+    parser.add_argument('--debug', default='sm', type=str, help='which debug dataset to run')
 
     ########################################################
 
@@ -286,9 +278,11 @@ if __name__ == "__main__":
     
     parser.add_argument('--data_dir', default=str(dirname(realpath(__file__))) + '/data', help='path to training data')
 
+    parser.add_argument('--logs_dir', default=str(dirname(realpath(__file__))) + '/out', help='path to log output dir')
+
     parser.add_argument('--select_device', default='GPU', type=str, help='the device to execute on')
 
-    parser.add_argument('--model_dir', default='trained_model', help='path to save model')
+    parser.add_argument('--save_dir', default='trained_model', help='path to save model')
 
     parser.add_argument('--ckpt', default='checkpoints/inflated/model.ckpt', type=str, help='path to previously saved model to load')
 
