@@ -25,7 +25,7 @@ import numpy as np
 
 
 def write_number_list(lst, f_name):
-    print('INFO: Saving to :' + f_name + '.npz ...')
+    print('INFO: Saving' + f_name + '.npz ...')
     print(lst)
     np.savez(f_name + '.npz', np.array(lst))       
 
@@ -93,9 +93,29 @@ def average_gradients(tower_grads):
         average_grads.append(grad_and_var)
     return average_grads
 
+def focal_loss(logits, labels, alpha=0.75, gamma=2):
+    """
+    Compute focal loss for binary classification
+    Args:
+      labels: A int32 tensor of shape [batch_size].
+      logits: A float32 tensor of shape [batch_size].
+      alpha: A scalar for focal loss alpha hyper-parameter. If positive samples number
+      > negtive samples number, alpha < 0.5 and vice versa.
+      gamma: A scalar for focal loss gamma hyper-parameter.
+    Returns:
+      A tensor of the same shape as `lables`
+    """
+    print('focal Loss variables:')
+    print('labels.shape:\n\n\n', labels.shape)
+    print('logits.shape:\n\n\n', logits.shape)
+    y_pred = tf.nn.sigmoid(logits)
+    labels = tf.to_float(labels)
+    losses = -(labels * (1 - alpha) * ((1 - y_pred) * gamma) * tf.log(y_pred)) - \
+        (1 - labels) * alpha * (y_pred ** gamma) * tf.log(1 - y_pred)
+    return tf.reduce_mean(losses)
 
 def cross_entropy_loss(logits, labels):
-    print('Loss variables:')
+    print('CE Loss variables:')
     print('labels:', labels)
     print('logits:', logits)
     print('logits.shape:', logits.shape)

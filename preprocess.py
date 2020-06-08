@@ -25,7 +25,7 @@ from random import shuffle
 
 # Load the scans in given folder path
 def load_scan(path):
-    slices = [dicom.read_file(path + '/' + s) for s in os.listdir(path) if s.endswith('.dcm')]
+    slices = [dicom.read_file(path + '/' + s) for s in os.listdir(path) if os.path.splitext(s)[0].isdigit()]
     slices.sort(key = lambda x: float(x.ImagePositionPatient[2]))
 
     if not slices[0].SliceThickness:
@@ -330,10 +330,10 @@ def walk_dicom_dirs(base_in, base_out, print_dirs=True):
         path = root.split(os.sep)
         if print_dirs:
             print((len(path) - 1) * '---', os.path.basename(root))
-        if len(files) >= 50 and files[0].endswith('.dcm'):
+        if len(files) >= 50 and os.path.splitext(files[0])[0].isdigit():
             yield root, base_out + os.path.relpath(root, base_in)
 
-def preprocess_all(input_dir):
+def preprocess_all(input_dir, overwrite=False):
     start = time.time()
     scans = os.listdir(input_dir)
     scans.sort()
@@ -344,8 +344,8 @@ def preprocess_all(input_dir):
     scans_num = len(list(walk_dicom_dirs(input_dir, base_out, False)))
     for scan_dir_path, out_path in tqdm(walk_dicom_dirs(input_dir, base_out), total=scans_num):
         try:
+            os.makedirs(os.path.dirname(out_path), exist_ok=overwrite)
             preprocessed_scan, scan_rgb_sample = preprocess(scan_dir_path, errors_map, context)
-            os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
             plt.imshow(scan_rgb_sample)
             plt.savefig(out_path + '.png', bbox_inches='tight') 
@@ -355,9 +355,11 @@ def preprocess_all(input_dir):
             print('\n++++++++++++++++++++++++\nDiagnostics:')
             print(errors_map)
 
+        except FileExistsError as e:
+            print('Exists:', out_path)
+
         except ValueError as e:
-            print('!!!!!!!!!\nERROR!!!!!!!!\n!!!!!!!!!')
-            print(e, '\n')
+            print('\nERROR!!!!\n', e)
 
     print('Total scans: {}'.format(scans_num))
     print('Scans with insufficient slices: {}'.format(errors_map['insufficient_slices']))
@@ -398,8 +400,8 @@ def create_train_test_list(positives_dir, negatives_dir, lists_dir, print_dirs=F
 
 
 if __name__ == "__main__":
-    # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/i3d/data')
+    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST')
     # preprocess_all(argv[1])
-    create_train_test_list('/workdisk/Lung-Cancer-Risk-Prediction/datasets/NLST_preprocessed/conflc=confirmed',
-        '/workdisk/Lung-Cancer-Risk-Prediction/datasets/NLST_preprocessed/conflc=confirmed_no_cancer',
-        '/workdisk/Lung-Cancer-Risk-Prediction/i3d/data')
+    # create_train_test_list('/workdisk/Lung-Cancer-Risk-Prediction/datasets/NLST_preprocessed/conflc=confirmed',
+    #     '/workdisk/Lung-Cancer-Risk-Prediction/datasets/NLST_preprocessed/conflc=confirmed_no_cancer',
+    #     '/workdisk/Lung-Cancer-Risk-Prediction/i3d/data')
