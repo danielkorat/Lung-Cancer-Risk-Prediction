@@ -195,20 +195,20 @@ def preprocess(scan, errors_map, context, num_frames=224, crop_size=224, windowi
     print('Lung bounding box (min, max):', (z_min, z_max), (x_min, x_max), (y_min, y_max))
     print('bounding box size:', (z_max - z_min, x_max - x_min, y_max - y_min))
     box_size = np.array([z_max - z_min, x_max - x_min, y_max - y_min])
-
+    print('box size:', box_size)
     starts = np.array([z_min, x_min, y_min])
     ends = np.array([z_max, x_max, y_max])
 
     actual_starts = np.array([max(0, starts[i] - context[i] // 2) for i in range(3)])
     actual_ends = np.array([min(resampled_scan[i], ends[i] + context[i] // 2) for i in range(3)])
 
+    actual_size = actual_ends - actual_starts
+    place_start = context // 2 - actual_size // 2
+    place_end = place_start + actual_size
+
     lungs_padded = np.zeros((num_frames, crop_size, crop_size))
-
-    place_start = context // 2 - lung_box // 2
-    place_end = place_start + lung_box
-
-    lungs_padded[center_z - z_half: center_z + z_half, center_x - x_half: center_x + x_half, center_y - y_half: center_y + y_half] = \
-            resampled_scan[z_start: z_end, x_start: x_end, y_start: y_end]
+    lungs_padded[place_start[0]: place_end[0], place_start[1]: place_end[1], place_start[2]: place_end[2]] = \
+            resampled_scan[actual_starts[0]: actual_ends[0], actual_starts[1]: actual_ends[1], actual_starts[1]: actual_ends[1]]
 
 
     # print('starts, ends:', (z_start, z_end), (x_start, x_end), (y_start, y_end))
