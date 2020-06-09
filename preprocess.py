@@ -235,16 +235,22 @@ def preprocess(scan, errors_map, context):
 
     lung_context = windowed_scan[max(0, z_start) : z_end, max(0, x_start) : x_end, max(0, y_start) : y_end]
 
+    # DEBUG file size
+    lung_context_unwindowed = resampled_scan[max(0, z_start) : z_end, max(0, x_start) : x_end, max(0, y_start) : y_end]
+    lung_rgb_unwindowed = np.stack((lung_context_unwindowed, lung_context_unwindowed, lung_context_unwindowed), axis=3)
+    lung_rgb_norm_unwindowed = (lung_rgb_unwindowed * 2.0) - 1.0
+    ###############
+
     # plt.imshow(lung_context[z_start + (context//2)], cmap=plt.cm.gray)
     # plt.savefig('out_preprocess/lung_context_' + scan[-4:] + '.png', bbox_inches='tight')
 
-    lung_rgb = np.stack((lung_context, lung_context, lung_context), axis=3)      
+    lung_rgb = np.stack((lung_context, lung_context, lung_context), axis=3)
     lung_rgb_sample = lung_rgb[lung_rgb.shape[0]//2]
 
     lung_rgb_norm = (lung_rgb * 2.0) - 1.0
     print("Final shape\t", lung_rgb_norm.shape, '\n\n')
 
-    return lung_rgb_norm, lung_rgb_sample
+    return lung_rgb_norm, lung_rgb_sample, lung_rgb_norm_unwindowed
 
 def walk_dicom_dirs(base_in, base_out, print_dirs=True):
     for root, _, files in os.walk(base_in):
@@ -267,12 +273,12 @@ def preprocess_all(input_dir, overwrite=False):
     for scan_dir_path, out_path in tqdm(walk_dicom_dirs(input_dir, base_out), total=scans_num):
         try:
             os.makedirs(os.path.dirname(out_path), exist_ok=overwrite)
-
-            # if overwrite or not os.listdir(os.path.dirname(out_path)):
-            preprocessed_scan, scan_rgb_sample = preprocess(scan_dir_path, errors_map, context)
+            preprocessed_scan, scan_rgb_sample, preprocessed_scan_unwindowed = preprocess(scan_dir_path, errors_map, context)
 
             plt.imshow(scan_rgb_sample)
             plt.savefig(out_path + '.png', bbox_inches='tight') 
+
+            np.save(out_path + '_unwindowed', preprocessed_scan_unwindowed)
 
             np.save(out_path, preprocessed_scan)
             valid_scans += 1

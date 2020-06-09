@@ -263,11 +263,11 @@ if __name__ == "__main__":
 
     ########################################################
 
-    parser.add_argument('--epochs', default=1, type=int,  help='the number of epochs')
+    parser.add_argument('--epochs', default=70, type=int,  help='the number of epochs')
 
     parser.add_argument('--batch_size', default=3, type=int, help='the training batch size')
 
-    parser.add_argument('--debug', default='sm', type=str, help='which debug dataset to run')
+    parser.add_argument('--debug', default='', type=str, help='which debug dataset to run')
 
     ########################################################
 

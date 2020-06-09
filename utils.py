@@ -77,7 +77,7 @@ def placeholder_inputs(batch_size=16, num_frame_per_clip=16, crop_size=199, rgb_
     return images_placeholder, labels_placeholder, is_training
 
 def load_npz_as_list(file):
-    return np.load('val_loss.npz')['arr_0'].tolist()
+    return np.load(file)['arr_0'].tolist()
 
 def average_gradients(tower_grads):
     average_grads = []
