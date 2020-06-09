@@ -4,5 +4,6 @@ dm-sonnet==1.34
 tqdm
 scipy
 pydicom
+scikit-learn
 scikit-image
 matplotlib
