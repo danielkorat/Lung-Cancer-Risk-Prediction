@@ -189,49 +189,45 @@ def preprocess(scan, errors_map, context, num_frames=224, crop_size=224, windowi
         raise ValueError(scan[-4:] + ': resampled Z dimension is less than 200')
 
     lung_mask = segment_lung_mask(resampled_scan, True)
-
-    # plt.imshow(orig_scan_np[orig_scan_np.shape[0]//2], cmap=plt.cm.gray)
-    # plt.savefig('out_preprocess/in_' + scan[-4:] + '.png', bbox_inches='tight')
+    context = np.array([num_frames, crop_size, crop_size])
 
     z_min, z_max, x_min, x_max, y_min, y_max = bbox2_3D(lung_mask)
-    print('Lung bounding box (min,max):', (z_min, z_max), (x_min, x_max), (y_min, y_max))
+    print('Lung bounding box (min, max):', (z_min, z_max), (x_min, x_max), (y_min, y_max))
     print('bounding box size:', (z_max - z_min, x_max - x_min, y_max - y_min))
+    box_size = np.array([z_max - z_min, x_max - x_min, y_max - y_min])
 
-    z_start = (z_max + z_min) // 2 - context // 2
-    z_end = z_start + context
-    y_start = (y_max + y_min) // 2 - context // 2
-    y_end = y_start + context
-    x_start = (x_max + x_min) // 2 - context // 2
-    x_end = x_start + context
+    starts = np.array([z_min, x_min, y_min])
+    ends = np.array([z_max, x_max, y_max])
 
-    print('starts, ends:', (z_start, z_end), (x_start, x_end), (y_start, y_end))
+    actual_starts = np.array([max(0, starts[i] - context[i] // 2) for i in range(3)])
+    actual_ends = np.array([min(resampled_scan[i], ends[i] + context[i] // 2) for i in range(3)])
 
-    if x_start < 0 or y_start < 0 or z_start < 0:
-        errors_map['bad_seg'] += 1
-        raise ValueError(scan[-4:] + ': bad segmentation')
-    
-    # DEBUG - Plotting
-    # lung_bounds = windowed_scan[(z_max - z_min) // 2, x_min: x_max, y_min: y_max]
-    # plt.imshow(lung_bounds, cmap=plt.cm.gray)
-    # plt.savefig('out_preprocess/lung_bounds_' + scan[-4:] + '.png', bbox_inches='tight')
-    # mid_slice = windowed_scan.shape[0] // 2
-    # plt.imshow(windowed_scan[mid_slice], cmap=plt.cm.gray)
-    # plt.savefig('out_preprocess/norm_resampled_' + scan[-4:] + '.png', bbox_inches='tight')
-    # plt.imshow(lung_context[z_start + (context//2)], cmap=plt.cm.gray)
-    # plt.savefig('out_preprocess/lung_context_' + scan[-4:] + '.png', bbox_inches='tight')
+    lungs_padded = np.zeros((num_frames, crop_size, crop_size))
 
-    if windowing:
-        resampled_scan = apply_window(resampled_scan)
+    place_start = context // 2 - lung_box // 2
+    place_end = place_start + lung_box
 
-    lungs_padded = np.zeros((num_frames, crop_size, crop_size)).astype(np.float32)
-    center_z, center_x, center_y = num_frames // 2, crop_size // 2, crop_size // 2
-    print('lung context size:', (z_end - z_start, x_end - x_start, y_end - y_start))
-
-    z_half = (z_end - z_start) // 2
-    x_half = (x_end - x_start) // 2
-    y_half = (y_end - y_start) // 2
     lungs_padded[center_z - z_half: center_z + z_half, center_x - x_half: center_x + x_half, center_y - y_half: center_y + y_half] = \
-                resampled_scan[z_start: z_end, x_start: x_end, y_start: y_end]
+            resampled_scan[z_start: z_end, x_start: x_end, y_start: y_end]
+
+
+    # print('starts, ends:', (z_start, z_end), (x_start, x_end), (y_start, y_end))
+
+    # if x_start < 0 or y_start < 0 or z_start < 0:
+    #     errors_map['bad_seg'] += 1
+    #     raise ValueError(scan[-4:] + ': bad segmentation')
+
+    # if windowing:
+    #     resampled_scan = apply_window(resampled_scan)
+
+    # lungs_padded = np.zeros((num_frames, crop_size, crop_size))
+    # center_z, center_x, center_y = num_frames // 2, crop_size // 2, crop_size // 2
+    # print('lung context size:', (z_end - z_start, x_end - x_start, y_end - y_start))
+
+    # z_half = (z_end - z_start) // 2
+    # x_half = (x_end - x_start) // 2
+    # y_half = (y_end - y_start) // 2
+
 
     lungs_rgb = np.stack((lungs_padded, lungs_padded, lungs_padded), axis=3)
 
