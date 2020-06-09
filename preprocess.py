@@ -167,7 +167,7 @@ def bbox2_3D(img):
     zmin, zmax = np.where(z)[0][[0, -1]]
     return rmin, rmax, cmin, cmax, zmin, zmax
 
-def preprocess(scan, errors_map, context, windowing=False):
+def preprocess(scan, errors_map, context, num_frames=224, crop_size=224, windowing=False):
     print('scan:', scan)
     
     orig_scan = load_scan(scan)
@@ -204,7 +204,7 @@ def preprocess(scan, errors_map, context, windowing=False):
     x_start = (x_max + x_min) // 2 - context // 2
     x_end = x_start + context
 
-    print('starts,end:', (z_start, z_end), (x_start, x_end), (y_start, y_end))
+    print('starts, ends:', (z_start, z_end), (x_start, x_end), (y_start, y_end))
 
     if x_start < 0 or y_start < 0 or z_start < 0:
         errors_map['bad_seg'] += 1
@@ -219,18 +219,26 @@ def preprocess(scan, errors_map, context, windowing=False):
     # plt.savefig('out_preprocess/norm_resampled_' + scan[-4:] + '.png', bbox_inches='tight')
     # plt.imshow(lung_context[z_start + (context//2)], cmap=plt.cm.gray)
     # plt.savefig('out_preprocess/lung_context_' + scan[-4:] + '.png', bbox_inches='tight')
-    
-    lung_context = resampled_scan[max(0, z_start) : z_end, max(0, x_start) : x_end, max(0, y_start) : y_end]
-    # Stack image to get RGB [0, 1] representation
-    lung_rgb = np.stack((lung_context, lung_context, lung_context), axis=3)
 
     if windowing:
         resampled_scan = apply_window(resampled_scan)
 
-    print("Final shape\t", lung_rgb.shape, '\n\n')
-    lung_rgb_sample = lung_rgb[lung_rgb.shape[0]//2]
-    return lung_rgb, lung_rgb_sample
+    lungs_padded = np.zeros((num_frames, crop_size, crop_size)).astype(np.float32)
+    center_z, center_x, center_y = num_frames // 2, crop_size // 2, crop_size // 2
+    print('lung context size:', (z_end - z_start, x_end - x_start, y_end - y_start))
 
+    z_half = (z_end - z_start) // 2
+    x_half = (x_end - x_start) // 2
+    y_half = (y_end - y_start) // 2
+    lungs_padded[center_z - z_half: center_z + z_half, center_x - x_half: center_x + x_half, center_y - y_half: center_y + y_half] = \
+                resampled_scan[z_start: z_end, x_start: x_end, y_start: y_end]
+
+    lungs_rgb = np.stack((lungs_padded, lungs_padded, lungs_padded), axis=3)
+
+    print("Final shape\t", lungs_padded.shape, '\n\n')
+    lungs_sample_slice = lungs_rgb[lungs_rgb.shape[0]//2]
+    return lungs_padded, lungs_sample_slice
+    
 def walk_dicom_dirs(base_in, base_out, print_dirs=True):
     for root, _, files in os.walk(base_in):
         path = root.split(os.sep)

@@ -237,23 +237,25 @@ class I3dForCTVolumes:
 
         for cur_file, label in coupled_data:
             try:
-                # Crop image to a constant size of [self.num_frames, self.crop_size, self.crop_size],
-                # pad with zeros if neccessary
-                images = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
-                # print("\nINFO: Loading image from {}".format(cur_file))
-                scan_arr = np.loadz(join(self.data_dir, cur_file))['data'].astype(np.float32)
-                # print('\nINFO Orig image shape:', scan_arr.shape)
-                images[:self.num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
-                    scan_arr[:self.num_frames, :self.crop_size, :self.crop_size, :3]
+                image = np.loadz(join(self.data_dir, cur_file))['data'].astype(np.float32)
+
+                # # Crop image to a constant size of [self.num_frames, self.crop_size, self.crop_size],
+                # # pad with zeros if neccessary
+                # image = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
+                # # print("\nINFO: Loading image from {}".format(cur_file))
+                # # print('\nINFO Orig image shape:', scan_arr.shape)
+                # image[:self.num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
+                #     scan_arr[:self.num_frames, :self.crop_size, :self.crop_size, :3]
                 
                 if windowing:
                     image = apply_window(image)
-                images.append(windowed)
+
+                images.append(image)
                 labels.append(label)
 
             except Exception as e:
                 # TODO: filter images which are too small
-                print("\nERROR Loading image from {} with shape {}".format(cur_file, scan_arr.shape))
+                print("\nERROR Loading image from {} with shape {}".format(cur_file, image.shape))
                 print(e)
 
         np_arr_images = np.array(images)
