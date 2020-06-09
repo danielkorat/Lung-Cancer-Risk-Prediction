@@ -70,8 +70,7 @@ def main(args):
                             num_examples=args.num_examples, dropout=1.0)
     else:
         print('\nINFO: Begin Training')
-
-        metrics_lists = tr_loss, tr_acc, val_loss, val_acc, val_auc = [], [], [], [], []
+        metrics_lists = [], [], [], [], []
         
         for epoch in range(1, args.epochs + 1):
             print("\nINFO: +++++++++++++++++++++ EPOCH ", epoch)
@@ -232,19 +231,24 @@ class I3dForCTVolumes:
                 self.is_training_placeholder: is_training
                 }
 
-    def process_coupled_data(self, coupled_data):
-        data = []
+    def process_coupled_data(self, coupled_data, windowing=True):
+        images = []
         labels = []
 
         for cur_file, label in coupled_data:
             try:
-                result = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
+                # Crop image to a constant size of [self.num_frames, self.crop_size, self.crop_size],
+                # pad with zeros if neccessary
+                images = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
                 # print("\nINFO: Loading image from {}".format(cur_file))
-                scan_arr = np.load(join(self.data_dir, cur_file)).astype(np.float32)
+                scan_arr = np.loadz(join(self.data_dir, cur_file))['data'].astype(np.float32)
                 # print('\nINFO Orig image shape:', scan_arr.shape)
-                result[:self.num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
+                images[:self.num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
                     scan_arr[:self.num_frames, :self.crop_size, :self.crop_size, :3]
-                data.append(result)
+                
+                if windowing:
+                    image = apply_window(image)
+                images.append(windowed)
                 labels.append(label)
 
             except Exception as e:
@@ -252,10 +256,9 @@ class I3dForCTVolumes:
                 print("\nERROR Loading image from {} with shape {}".format(cur_file, scan_arr.shape))
                 print(e)
 
-
-        np_arr_data = np.array(data)
+        np_arr_images = np.array(images)
         np_arr_labels = np.array(labels).astype(np.int64)
-        return np_arr_data, np_arr_labels
+        return np_arr_images, np_arr_labels
 
 
 if __name__ == "__main__":

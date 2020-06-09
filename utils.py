@@ -23,6 +23,20 @@ import tensorflow as tf
 import math
 import numpy as np
 
+def apply_window(image):
+    # Windowing
+    # Our values currently range from -1024 to around 2000. 
+    # Anything above 400 is not interesting to us, as these are simply bones with different radiodensity.  
+    # A commonly used set of thresholds in Lungs LDCT to normalize between are -1000 and 400. 
+    min_bound = -1000.0
+    max_bound = 400.0
+    image = (image - min_bound) / (max_bound - min_bound)
+    image[image>1] = 1.
+    image[image<0] = 0.
+
+    # Normalize rgb values to [-1, 1]
+    image = (image * 2) - 1
+    return image
 
 def write_number_list(lst, f_name):
     print('INFO: Saving' + f_name + '.npz ...')
@@ -94,8 +108,8 @@ def average_gradients(tower_grads):
     return average_grads
 
 def focal_loss(logits, labels, alpha=0.75, gamma=2):
-    """
-    Compute focal loss for binary classification
+    """Compute focal loss for binary classification.
+
     Args:
       labels: A int32 tensor of shape [batch_size].
       logits: A float32 tensor of shape [batch_size].
@@ -135,16 +149,3 @@ def get_preds(preds):
 
 def get_logits(logits):
     return logits
-
-# def _variable_on_cpu(name, shape, initializer):
-#     with tf.device('/cpu:0'):
-#         var = tf.get_variable(name, shape, initializer=initializer)
-#     return var
-
-
-# def _variable_with_weight_decay(name, shape, wd):
-#     var = _variable_on_cpu(name, shape, tf.contrib.layers.xavier_initializer())
-#     if wd is not None:
-#         weight_decay = tf.nn.l2_loss(var)*wd
-#         tf.add_to_collection('weightdecay_losses', weight_decay)
-#     return var

@@ -5,6 +5,7 @@ import pydicom as dicom
 import os
 import scipy.ndimage
 import matplotlib.pyplot as plt
+from utils import apply_window
 
 from skimage import measure, morphology
 from collections import defaultdict
@@ -157,20 +158,6 @@ def segment_lung_mask(image, fill_lung_structures=True):
  
     return binary_image
 
-
-# # Normalization
-# Our values currently range from -1024 to around 2000. Anything above 400 is not interesting to us, as these are simply bones with different radiodensity.  
-# A commonly used set of thresholds in the LUNA16 competition to normalize between are -1000 and 400. 
-
-MIN_BOUND = -1000.0
-MAX_BOUND = 400.0
-    
-def apply_window(image):
-    image = (image - MIN_BOUND) / (MAX_BOUND - MIN_BOUND)
-    image[image>1] = 1.
-    image[image<0] = 0.
-    return image
-
 def bbox2_3D(img):
     r = np.any(img, axis=(1, 2))
     c = np.any(img, axis=(0, 2))
@@ -180,7 +167,7 @@ def bbox2_3D(img):
     zmin, zmax = np.where(z)[0][[0, -1]]
     return rmin, rmax, cmin, cmax, zmin, zmax
 
-def preprocess(scan, errors_map, context):
+def preprocess(scan, errors_map, context, windowing=False):
     print('scan:', scan)
     
     orig_scan = load_scan(scan)
@@ -194,7 +181,7 @@ def preprocess(scan, errors_map, context):
 
     # Let's resample our patient's pixels to an isomorphic resolution
     print("Shape before resampling\t", scan_hu.shape)
-    resampled_scan, _ = resample(scan_hu, orig_scan, orig_scan_np, [1, 1, 1])
+    resampled_scan, _ = resample(scan_hu, orig_scan, orig_scan_np, [1.2, 1.2, 1.2])
     print("Shape after resampling\t", resampled_scan.shape)
 
     if resampled_scan.shape[0] < 200:
@@ -222,35 +209,27 @@ def preprocess(scan, errors_map, context):
     if x_start < 0 or y_start < 0 or z_start < 0:
         errors_map['bad_seg'] += 1
         raise ValueError(scan[-4:] + ': bad segmentation')
-
-    windowed_scan = apply_window(resampled_scan)
-
+    
+    # DEBUG - Plotting
     # lung_bounds = windowed_scan[(z_max - z_min) // 2, x_min: x_max, y_min: y_max]
     # plt.imshow(lung_bounds, cmap=plt.cm.gray)
     # plt.savefig('out_preprocess/lung_bounds_' + scan[-4:] + '.png', bbox_inches='tight')
-
     # mid_slice = windowed_scan.shape[0] // 2
     # plt.imshow(windowed_scan[mid_slice], cmap=plt.cm.gray)
     # plt.savefig('out_preprocess/norm_resampled_' + scan[-4:] + '.png', bbox_inches='tight')
-
-    lung_context = windowed_scan[max(0, z_start) : z_end, max(0, x_start) : x_end, max(0, y_start) : y_end]
-
-    # DEBUG file size
-    lung_context_unwindowed = resampled_scan[max(0, z_start) : z_end, max(0, x_start) : x_end, max(0, y_start) : y_end]
-    lung_rgb_unwindowed = np.stack((lung_context_unwindowed, lung_context_unwindowed, lung_context_unwindowed), axis=3)
-    lung_rgb_norm_unwindowed = (lung_rgb_unwindowed * 2.0) - 1.0
-    ###############
-
     # plt.imshow(lung_context[z_start + (context//2)], cmap=plt.cm.gray)
     # plt.savefig('out_preprocess/lung_context_' + scan[-4:] + '.png', bbox_inches='tight')
-
+    
+    lung_context = resampled_scan[max(0, z_start) : z_end, max(0, x_start) : x_end, max(0, y_start) : y_end]
+    # Stack image to get RGB [0, 1] representation
     lung_rgb = np.stack((lung_context, lung_context, lung_context), axis=3)
+
+    if windowing:
+        resampled_scan = apply_window(resampled_scan)
+
+    print("Final shape\t", lung_rgb.shape, '\n\n')
     lung_rgb_sample = lung_rgb[lung_rgb.shape[0]//2]
-
-    lung_rgb_norm = (lung_rgb * 2.0) - 1.0
-    print("Final shape\t", lung_rgb_norm.shape, '\n\n')
-
-    return lung_rgb_norm, lung_rgb_sample, lung_rgb_norm_unwindowed
+    return lung_rgb, lung_rgb_sample
 
 def walk_dicom_dirs(base_in, base_out, print_dirs=True):
     for root, _, files in os.walk(base_in):
@@ -273,14 +252,12 @@ def preprocess_all(input_dir, overwrite=False):
     for scan_dir_path, out_path in tqdm(walk_dicom_dirs(input_dir, base_out), total=scans_num):
         try:
             os.makedirs(os.path.dirname(out_path), exist_ok=overwrite)
-            preprocessed_scan, scan_rgb_sample, preprocessed_scan_unwindowed = preprocess(scan_dir_path, errors_map, context)
+            preprocessed_scan, scan_rgb_sample = preprocess(scan_dir_path, errors_map, context)
 
             plt.imshow(scan_rgb_sample)
-            plt.savefig(out_path + '.png', bbox_inches='tight') 
+            plt.savefig(out_path + '.png', bbox_inches='tight')
+            np.savez_compressed(out_path + '.npz', data=preprocessed_scan)
 
-            np.save(out_path + '_unwindowed', preprocessed_scan_unwindowed)
-
-            np.save(out_path, preprocessed_scan)
             valid_scans += 1
             print('\n++++++++++++++++++++++++\nDiagnostics:')
             print(errors_map)
@@ -309,9 +286,9 @@ def create_train_test_list(positives_dir, negatives_dir, lists_dir, print_dirs=F
             if print_dirs:
                 print((len(path) - 1) * '---', os.path.basename(root))
             for f in files:
-                if f.endswith('.npy'):
+                if f.endswith('.npz'):
                     path_list.append((root + '/' + f, label))
-        print('.npy files with label', label, len(path_list))
+        print('.npz files with label', label, len(path_list))
 
     train_list = []
     test_list = []
@@ -334,7 +311,7 @@ def create_train_test_list(positives_dir, negatives_dir, lists_dir, print_dirs=F
 
 
 if __name__ == "__main__":
-    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST/confirmed_no_cancer_numscreens_2-971_volumes', overwrite=True)
+    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST/no_cancer_2450_part_2', overwrite=True)
     # preprocess_all(argv[1])
     # create_train_test_list('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/confirmed_scanyr_2_filtered',
     #     '/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/confirmed_no_cancer_scanyr_numscreens_2-971_volumes',
