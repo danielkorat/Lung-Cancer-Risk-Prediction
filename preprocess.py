@@ -192,7 +192,7 @@ def preprocess(scan, errors_map, context):
 
     scan_hu = get_pixels_hu(orig_scan)
 
-    # Let's resample our patient's pixels to an isomorphic resolution of 1.4 by 1.4 by 1.4 mm.
+    # Let's resample our patient's pixels to an isomorphic resolution
     print("Shape before resampling\t", scan_hu.shape)
     resampled_scan, _ = resample(scan_hu, orig_scan, orig_scan_np, [1, 1, 1])
     print("Shape after resampling\t", resampled_scan.shape)

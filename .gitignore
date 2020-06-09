@@ -141,6 +141,10 @@ dmypy.json
 *.DS_Store
 *.npz
 
+*.log
+
+*.out
+
 data/checkpoints
 data/datasets
 
