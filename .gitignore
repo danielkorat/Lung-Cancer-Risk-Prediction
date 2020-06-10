@@ -131,7 +131,6 @@ dmypy.json
 *.dcm
 *.nii
 *.gz
-*.png
 *.mhd
 *.raw
 *.ckpt
