@@ -105,6 +105,7 @@ class I3dForCTVolumes:
         self.batch_size = batch_size
         self.verbose = verbose
 
+        # pylint: disable=not-context-manager
         with tf.Graph().as_default():
             global_step = tf.get_variable(
                     'global_step',
@@ -147,7 +148,6 @@ class I3dForCTVolumes:
                     grads = optimizer.compute_gradients(self.loss)
                     apply_gradient = optimizer.apply_gradients(grads, global_step=global_step)
                     self.train_op = tf.group(apply_gradient)
-                    null_op = tf.no_op()
 
             # Create a saver for loading pretrained checkpoints.
             pretrained_variable_map = {}
@@ -259,15 +259,12 @@ class I3dForCTVolumes:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    ########################################################
 
     parser.add_argument('--epochs', default=3, type=int,  help='the number of epochs')
 
     parser.add_argument('--batch_size', default=1, type=int, help='the training batch size')
 
     parser.add_argument('--debug', default='san_', type=str, help='which debug dataset to run')
-
-    ########################################################
 
     parser.add_argument('--train', default='train.list', help='path to training data')
 

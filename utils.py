@@ -116,7 +116,7 @@ def cross_entropy_loss(logits, labels):
     print('logits:', logits)
     print('logits.shape:', logits.shape)
     cross_entropy_mean = tf.reduce_mean(
-                  tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits)
+                  tf.nn.sparse_softmax_cross_entropy_with_logits(logits, labels)
                   )
     return cross_entropy_mean
 

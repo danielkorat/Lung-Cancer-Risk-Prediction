@@ -70,15 +70,10 @@ def get_pixels_hu(slices):
 # # Resampling
 # A scan may have a pixel spacing of `[2.5, 0.5, 0.5]`, which means that the distance between slices is `2.5` millimeters. 
 # For a different scan this may be `[1.5, 0.725, 0.725]`, 
-# this can be problematic for automatic analysis (e.g. using ConvNets)! 
-# 
+# this can be problematic for automatic analysis (e.g. using ConvNets).
 # A common method of dealing with this is resampling the full dataset to a certain isotropic resolution. 
 # If we choose to resample everything to 1.5mm*1.5mm*1.5mm pixels we can use 3D convnets without worrying about learning zoom/slice thickness invariance. 
-# 
 # Whilst this may seem like a very simple step, it has quite some edge cases due to rounding. Also, it takes quite a while.
-# 
-# Below code worked well for us (and deals with the edge cases):
-
 
 def resample(scan_hu, scan_file, scan, new_spacing, verbose=False):
     # Determine current pixel spacing
@@ -94,9 +89,17 @@ def resample(scan_hu, scan_file, scan, new_spacing, verbose=False):
     scan_hu = scipy.ndimage.interpolation.zoom(scan_hu, real_resize_factor, mode='nearest')
     return scan_hu, new_spacing 
 
+def largest_label_volume(im, bg=-1):
+    vals, counts = np.unique(im, return_counts=True)
+    counts = counts[vals != bg]
+    vals = vals[vals != bg]
+    if len(counts) > 0:
+        return vals[np.argmax(counts)]
+    else:
+        return None
 
 # # Lung segmentation
-# In order to reduce the problem space, we can segment the lungs (and usually some tissue around it).
+# In order to reduce the problem space, we segment the lungs (and usually some tissue around it).
 # It consists of a series of applications of region growing and morphological operations. In this case, 
 # we will use only connected component analysis.
 # 
@@ -106,18 +109,6 @@ def resample(scan_hu, scan_file, scan, new_spacing, verbose=False):
 # * Optionally: For every axial slice in the scan, determine the largest solid connected component 
 # (the body+air around the person), and set others to 0. This fills the structures in the lungs in the mask.
 # * Keep only the largest air pocket (the human body has other pockets of air here and there).
-
-def largest_label_volume(im, bg=-1):
-    vals, counts = np.unique(im, return_counts=True)
-
-    counts = counts[vals != bg]
-    vals = vals[vals != bg]
-
-    if len(counts) > 0:
-        return vals[np.argmax(counts)]
-    else:
-        return None
-
 def segment_lung_mask(image, fill_lung_structures=True):
     
     # not actually binary, but 1 and 2. 
@@ -134,7 +125,6 @@ def segment_lung_mask(image, fill_lung_structures=True):
     #Fill the air around the person
     binary_image[background_label == labels] = 2
     
-    
     # Method of filling the lung structures (that is superior to something like 
     # morphological closing)
     if fill_lung_structures:
@@ -143,12 +133,10 @@ def segment_lung_mask(image, fill_lung_structures=True):
             axial_slice = axial_slice - 1
             labeling = measure.label(axial_slice)
             l_max = largest_label_volume(labeling, bg=0)
-            
-            if l_max is not None: #This slice contains some lung
+            if l_max is not None: # This slice contains some lung
                 binary_image[i][labeling != l_max] = 1
-
     
-    binary_image -= 1 #Make the image actual binary
+    binary_image -= 1 # Make the image actual binary
     binary_image = 1-binary_image # Invert it, lungs are now 1
     
     # Remove other air pockets insided body
@@ -156,7 +144,6 @@ def segment_lung_mask(image, fill_lung_structures=True):
     l_max = largest_label_volume(labels, bg=0)
     if l_max is not None: # There are air pockets
         binary_image[labels != l_max] = 0
- 
     return binary_image
 
 def bbox2_3D(img):
