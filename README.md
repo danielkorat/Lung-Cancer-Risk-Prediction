@@ -25,21 +25,22 @@ $ pip install -r requirements.txt
 
 ## Running the code
 
-The `main.py` module enables to run training (fine-tuning) and inference on preprocessed CT volumes, produced by `preprocess.py`.
+The `main.py` module contains training (fine-tuning) and inference procedures. 
+The inputs are preprocessed CT volumes, as produced by `preprocess.py`.
 For usage example, refer to the arguments' description and default values in the bottom of `main.py`.
 
 ### Data Preprocessing
 
 The `main.py` module operates only on preprocessed volumes, produced by `preprocess.py`.
 Each CT volume in NLST is a folder of DICOM files (one file per slice).
-The `preprocess.py` module accepts a directory `path/to/data` containing multiple CT volumes, performs several preprocessing steps on each volume, and saves each preprocessed volume as to an `.npz` file in `path/to/data_preprocssed`.
+The `preprocess.py` module accepts a directory `path/to/data` containing multiple CT volumes, performs several preprocessing steps, and writes each volume as an `.npz` file in `path/to/data_preprocssed`.
 The preprocessing steps include methods from [this](https://www.kaggle.com/gzuidhof/full-preprocessing-tutorial/notebook) tutorial and include:
 
-1. Resampling to a 1.4mm voxel size (slow)
-2. Coarse lung segmentation – used to compute lung center for alignment
+1. Resampling to a 1.4mm voxel size (slow).
+2. Coarse lung segmentation – used to compute lung center for alignment and reduction of problem space.
 
 To save storage space, following preprocessing steps are performed online (during training/inference):
-3. Windowing – clip pixel values to focus on lung volume 
+3. Windowing – clip pixel values to focus on lung volume.
 4. RGB normalization
 
 ### Provided checkpoint
