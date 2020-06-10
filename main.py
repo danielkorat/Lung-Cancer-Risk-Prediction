@@ -107,7 +107,7 @@ def write_metrics(metrics_lists, tr_metrics, val_metrics, out_dir, epoch):
     write_number_list(val_epoch_preds, out_dir + '/val_preds/epoch_{}'.format(epoch))
 
 class I3dForCTVolumes:
-    def __init__(self, data_dir, batch_size, learning_rate=0.0001, device='GPU', num_frames=140, crop_size=224):
+    def __init__(self, data_dir, batch_size, learning_rate=0.0001, device='GPU', num_frames=224, crop_size=224):
         self.data_dir = data_dir
         self.crop_size = crop_size
         self.num_frames = num_frames
@@ -123,8 +123,7 @@ class I3dForCTVolumes:
 
             # Placeholders
             self.images_placeholder, self.labels_placeholder, self.is_training_placeholder = placeholder_inputs(
-                    batch_size=self.batch_size,
-                    num_frame_per_clip=self.num_frames,
+                    num_frames=self.num_frames,
                     crop_size=self.crop_size,
                     rgb_channels=3
                     )
@@ -150,7 +149,6 @@ class I3dForCTVolumes:
                 self.get_preds = get_preds(self.preds)
                 self.get_logits = get_logits(self.logits)
                 self.accuracy = accuracy(self.logits, self.labels_placeholder)
-                self.auc = tf.metrics.auc(self.labels_placeholder, self.preds[:, 1])
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 with tf.control_dependencies(update_ops):
@@ -196,12 +194,11 @@ class I3dForCTVolumes:
 
     def val_loop(self, images, labels):
         acc_list = []
-        auc_list = []
         loss_list = []
         preds_list = []
 
         for image_batch, label_batch in tqdm(list(zip(batcher(images, self.batch_size), batcher(labels, self.batch_size)))):
-            feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=False)
+            feed_dict = self.coupled_data_to_dict(image_batch, label_batch, windowing=True, is_training=False)
             batch_acc, batch_loss, preds = self.sess.run([self.accuracy, self.loss, self.get_preds], feed_dict=feed_dict)
             acc_list.append(batch_acc)
             loss_list.append(batch_loss)
@@ -224,7 +221,9 @@ class I3dForCTVolumes:
 
         return mean_loss, mean_acc, auc_score, preds_list
 
-    def coupled_data_to_dict(self, images, labels, is_training):
+    def coupled_data_to_dict(self, images, labels, windowing=True, is_training=False):
+        if windowing:
+            images = apply_window(images)
         return {
                 self.images_placeholder: images,
                 self.labels_placeholder: labels,
@@ -237,7 +236,7 @@ class I3dForCTVolumes:
 
         for cur_file, label in coupled_data:
             try:
-                image = np.loadz(join(self.data_dir, cur_file))['data'].astype(np.float32)
+                image = np.load(join(self.data_dir, cur_file))['data'].astype(np.float32)
 
                 # # Crop image to a constant size of [self.num_frames, self.crop_size, self.crop_size],
                 # # pad with zeros if neccessary
@@ -246,17 +245,15 @@ class I3dForCTVolumes:
                 # # print('\nINFO Orig image shape:', scan_arr.shape)
                 # image[:self.num_frames, :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
                 #     scan_arr[:self.num_frames, :self.crop_size, :self.crop_size, :3]
-                
-                if windowing:
-                    image = apply_window(image)
 
                 images.append(image)
                 labels.append(label)
 
             except Exception as e:
                 # TODO: filter images which are too small
-                print("\nERROR Loading image from {} with shape {}".format(cur_file, image.shape))
+                print("\nERROR Loading image from {}".format(cur_file))
                 print(e)
+                raise e
 
         np_arr_images = np.array(images)
         np_arr_labels = np.array(labels).astype(np.int64)
@@ -268,11 +265,11 @@ if __name__ == "__main__":
 
     ########################################################
 
-    parser.add_argument('--epochs', default=70, type=int,  help='the number of epochs')
+    parser.add_argument('--epochs', default=2, type=int,  help='the number of epochs')
 
-    parser.add_argument('--batch_size', default=3, type=int, help='the training batch size')
+    parser.add_argument('--batch_size', default=1, type=int, help='the training batch size')
 
-    parser.add_argument('--debug', default='', type=str, help='which debug dataset to run')
+    parser.add_argument('--debug', default='san', type=str, help='which debug dataset to run')
 
     ########################################################
 
@@ -280,7 +277,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--test', default='test.list', help='path to training data')
 
-    parser.add_argument('--gpu_id', default="0", type=str, help='gpu id')
+    parser.add_argument('--gpu_id', default="3", type=str, help='gpu id')
     
     parser.add_argument('--data_dir', default=str(dirname(realpath(__file__))) + '/data', help='path to training data')
 

@@ -36,7 +36,9 @@ def apply_window(image):
 
     # Normalize rgb values to [-1, 1]
     image = (image * 2) - 1
-    return image
+
+    # image = np.stack((image, image, image), axis=4)
+    return np.stack((image, image, image), axis=4)
 
 def write_number_list(lst, f_name):
     print('INFO: Saving' + f_name + '.npz ...')
@@ -62,7 +64,7 @@ def load_data_list(path):
             coupled_data.append((image_path, int(label)))
     return coupled_data
 
-def placeholder_inputs(batch_size=16, num_frame_per_clip=16, crop_size=199, rgb_channels=3):
+def placeholder_inputs(num_frames, crop_size, rgb_channels=3):
     """Generate placeholder variables to represent the input tensors.
 
     These placeholders are used as inputs by the rest of the model building
@@ -82,7 +84,7 @@ def placeholder_inputs(batch_size=16, num_frame_per_clip=16, crop_size=199, rgb_
     # image and label tensors, except the first dimension is now batch_size
     # rather than the full size of the train or test data sets.
     images_placeholder = tf.placeholder(tf.float32, shape=(None,
-                                                           num_frame_per_clip,
+                                                           num_frames,
                                                            crop_size,
                                                            crop_size,
                                                            rgb_channels))

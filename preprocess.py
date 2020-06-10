@@ -280,31 +280,33 @@ def preprocess_all(input_dir, overwrite=False):
     print('Scans with small resampled z dimension: {}'.format(errors_map['small_z']))
     print((time.time() - start) / scans_num, 'sec/image')
 
-def create_train_test_list(positives_dir, negatives_dir, lists_dir, print_dirs=False):
+def create_train_test_list(positives, negatives, lists_dir, print_dirs=False, split_ratio=0.7, base_dir=''):
     positive_paths = []
     negative_paths = []
-
-    for preprocessed_dir, path_list, label in (positives_dir, positive_paths, '1'), (negatives_dir, negative_paths, '0'):
-        for root, _, files in os.walk(preprocessed_dir):
+    
+    for preprocessed_dir, path_list, label in (positives, positive_paths, '1'), (negatives, negative_paths, '0'):
+        for root, _, files in os.walk(os.path.join(base_dir, preprocessed_dir)):
             path = root.split(os.sep)
             if print_dirs:
                 print((len(path) - 1) * '---', os.path.basename(root))
             for f in files:
                 if f.endswith('.npz'):
                     path_list.append((root + '/' + f, label))
-        print('.npz files with label', label, len(path_list))
+        print('\n INFO:', '.npz files with label', label, len(path_list))
 
     train_list = []
     test_list = []
     shuffle(positive_paths)
-    split_pos = round(0.75 * len(positive_paths))
+    split_pos = round(split_ratio * len(positive_paths))
     shuffle(negative_paths)
-    split_neg = round(0.75 * len(negative_paths))
+    split_neg = round(split_ratio * len(negative_paths))
     train_list = positive_paths[:split_pos] + negative_paths[:split_neg]
     test_list = positive_paths[split_pos:] + negative_paths[split_neg:]
     shuffle(train_list)
     shuffle(test_list)
 
+    lists_dir = os.path.join(base_dir, lists_dir)
+    os.makedirs(lists_dir, exist_ok=True)
     with open(lists_dir + '/test.list', 'w') as test_f:
         for path, label in test_list:
             test_f.write(path + ' ' + label + '\n')
@@ -315,8 +317,9 @@ def create_train_test_list(positives_dir, negatives_dir, lists_dir, print_dirs=F
 
 
 if __name__ == "__main__":
-    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST', overwrite=True)
+    # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST', overwrite=True)
     # preprocess_all(argv[1])
-    # create_train_test_list('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/confirmed_scanyr_2_filtered',
-    #     '/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/confirmed_no_cancer_scanyr_numscreens_2-971_volumes',
-    #     '/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/lists')
+    create_train_test_list(positives='datasets/sanity/pos', 
+                            negatives='datasets/sanity/neg', 
+                            lists_dir='sanity_lists', 
+                            base_dir='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/')
