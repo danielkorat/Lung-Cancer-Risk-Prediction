@@ -8,11 +8,11 @@ This repository contains an implementation of the "full-volume" model from the p
 
 The model uses a three-dimensional (3D) CNN to perform end-to-end analysis of whole-CT volumes, using LDCT
 volumes with pathology-confirmed cancer as training data. 
-The CNN architecture is Inflated 3D ConvNet (I3D) ([Carreira and
+The CNN architecture is an Inflated 3D ConvNet (I3D) ([Carreira and
 Zisserman](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadis_Action_CVPR_2017_paper.html)).
 
 ### Data
-We use the NLST dataset which cintains chest LDCT volumes with pathology-confirmed cancer evaluations. For description and access to the dataset refer to the [NCI website](https://biometry.nci.nih.gov/cdas/learn/nlst/images/).
+We use the NLST dataset which contains chest LDCT volumes with pathology-confirmed cancer evaluations. For description and access to the dataset refer to the [NCI website](https://biometry.nci.nih.gov/cdas/learn/nlst/images/).
 
 ### Setup
 
@@ -25,9 +25,23 @@ $ pip install -r requirements.txt
 
 ## Running the code
 
+The `main.py` module contains training (fine-tuning) and inference procedures. 
+The inputs are preprocessed CT volumes, as produced by `preprocess.py`.
+For usage example, refer to the arguments' description and default values in the bottom of `main.py`.
 
-### Sample code
+### Data Preprocessing
 
+The `main.py` module operates only on preprocessed volumes, produced by `preprocess.py`.
+Each CT volume in NLST is a folder of DICOM files (one file per slice).
+The `preprocess.py` module accepts a directory `path/to/data` containing multiple CT volumes, performs several preprocessing steps, and writes each volume as an `.npz` file in `path/to/data_preprocssed`.
+The preprocessing steps include methods from [this](https://www.kaggle.com/gzuidhof/full-preprocessing-tutorial/notebook) tutorial and include:
+
+1. Resampling to a 1.4mm voxel size (slow).
+2. Coarse lung segmentation – used to compute lung center for alignment and reduction of problem space.
+
+To save storage space, following preprocessing steps are performed online (during training/inference):
+3. Windowing – clip pixel values to focus on lung volume.
+4. RGB normalization
 
 ### Provided checkpoint
 The repository also includes a pre-trained checkpoint in `data/checkpoints`, which wastrained on a subset of NLST with 2,000 CT images. The model is pre-trained on ImageNet and then NLST for binary classification.
@@ -41,17 +55,6 @@ It is then trained on the preprocessed CT volumes to predict cancer within 1 yea
 We train using `tf.train.AdamOptimizer`. During training, we use ?.? dropout, with a
 minibatch size of 3. The optimizer uses learning rate of 1e-4, with and exponential decay rate of 0.1.
 We train the model for ???k steps (?? epochs).
-
-
-### Data Preprocessing
-Each CT volume downloaded from NLST is a folder of DICOM files (one per slice).
-The `preprocess.py` module accepts a directory `path/to/data` containing multiple CT volumes, performs several preprocessing steps on each volume, and saves each preprocessed volume as 3D `.npy` file in `path/to/data_preprocssed`.
-The preprocessing steps use methods from [this](https://www.kaggle.com/gzuidhof/full-preprocessing-tutorial/notebook) tutorial and include:
-
-1. Resampling to a 1mm voxel size
-2. Coarse lung segmentation – used to compute lung center for alignment
-3. Windowing – clip pixel values to focus on lung volume
-4. RGB normalization
 
 ### Acknowledgments
 
