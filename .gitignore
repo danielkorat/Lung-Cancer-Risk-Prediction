@@ -145,7 +145,6 @@ dmypy.json
 
 *.out
 
-data/checkpoints
 data/datasets
 preprocess.log
 visual_logs/
