@@ -120,7 +120,6 @@ def cross_entropy_loss(logits, labels):
                   )
     return cross_entropy_mean
 
-
 def accuracy(logit, labels):
     correct_pred = tf.equal(tf.argmax(logit, 1), labels)
     accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
