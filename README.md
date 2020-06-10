@@ -18,6 +18,9 @@ We use the NLST dataset which contains chest LDCT volumes with pathology-confirm
 
 ![Example cases](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/images/example_cases.png)
 
+
+## Running the code
+
 ### Setup
 
 ```
@@ -26,8 +29,6 @@ $ cd Lung-Cancer-Risk-Prediction
 $ pip install -U pip
 $ pip install -r requirements.txt
 ```
-
-## Running the code
 
 The `main.py` module contains training (fine-tuning) and inference procedures. 
 The inputs are preprocessed CT volumes, as produced by `preprocess.py`.
