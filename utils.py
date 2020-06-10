@@ -36,16 +36,18 @@ def apply_window(image):
 
     # Normalize rgb values to [-1, 1]
     image = (image * 2) - 1
-    return image
 
-def write_number_list(lst, f_name):
-    print('INFO: Saving' + f_name + '.npz ...')
-    print(lst)
+    return np.stack((image, image, image), axis=4)
+
+def write_number_list(lst, f_name, verbose=False):
+    if verbose:
+        print('INFO: Saving ' + f_name + '.npz ...')
+        print(lst)
     np.savez(f_name + '.npz', np.array(lst))       
 
 def append_and_write(*args):
     for lst, new_item, f_name in args:
-        print(f_name + ' :', '\n', 'Items:', lst, '\n New item:', new_item)
+        # print(f_name + ' :', '\n', 'Items:', lst, '\n New item:', new_item)
         lst.append(new_item)
         write_number_list(lst, f_name)
 
@@ -62,7 +64,7 @@ def load_data_list(path):
             coupled_data.append((image_path, int(label)))
     return coupled_data
 
-def placeholder_inputs(batch_size=16, num_frame_per_clip=16, crop_size=199, rgb_channels=3):
+def placeholder_inputs(num_frames, crop_size, rgb_channels=3):
     """Generate placeholder variables to represent the input tensors.
 
     These placeholders are used as inputs by the rest of the model building
@@ -82,30 +84,13 @@ def placeholder_inputs(batch_size=16, num_frame_per_clip=16, crop_size=199, rgb_
     # image and label tensors, except the first dimension is now batch_size
     # rather than the full size of the train or test data sets.
     images_placeholder = tf.placeholder(tf.float32, shape=(None,
-                                                           num_frame_per_clip,
+                                                           num_frames,
                                                            crop_size,
                                                            crop_size,
                                                            rgb_channels))
     labels_placeholder = tf.placeholder(tf.int64, shape=(None))
     is_training = tf.placeholder(tf.bool)
     return images_placeholder, labels_placeholder, is_training
-
-def load_npz_as_list(file):
-    return np.load(file)['arr_0'].tolist()
-
-def average_gradients(tower_grads):
-    average_grads = []
-    for grad_and_vars in zip(*tower_grads):
-        grads = []
-        for g, _ in grad_and_vars:
-            expanded_g = tf.expand_dims(g, 0)
-            grads.append(expanded_g)
-        grad = tf.concat(grads, 0)
-        grad = tf.reduce_mean(grad, 0)
-        v = grad_and_vars[0][1]
-        grad_and_var = (grad, v)
-        average_grads.append(grad_and_var)
-    return average_grads
 
 def focal_loss(logits, labels, alpha=0.75, gamma=2):
     """Compute focal loss for binary classification.
@@ -119,9 +104,6 @@ def focal_loss(logits, labels, alpha=0.75, gamma=2):
     Returns:
       A tensor of the same shape as `lables`
     """
-    print('focal Loss variables:')
-    print('labels.shape:\n\n\n', labels.shape)
-    print('logits.shape:\n\n\n', logits.shape)
     y_pred = tf.nn.sigmoid(logits)
     labels = tf.to_float(labels)
     losses = -(labels * (1 - alpha) * ((1 - y_pred) * gamma) * tf.log(y_pred)) - \
