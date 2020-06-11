@@ -31,12 +31,14 @@ def write_metrics(metrics, tr_epoch_metrics, val_metrics, out_dir, epoch, verbos
     utils.write_number_list(val_epoch_preds, out_dir + '/val_preds/epoch_{}'.format(epoch), verbose=verbose)
 
 class I3dForCTVolumes:
-    def __init__(self, data_dir, batch_size, learning_rate=0.0001, device='GPU', num_frames=224, crop_size=224, verbose=False):
+    def __init__(self, data_dir, batch_size, is_compressed, learning_rate=0.0001, device='GPU', 
+                num_frames=224, crop_size=224, erbose=False):
         self.data_dir = data_dir
         self.crop_size = crop_size
         self.num_frames = num_frames
         self.batch_size = batch_size
         self.verbose = verbose
+        self.is_compressed = is_compressed
 
         # pylint: disable=not-context-manager
         with tf.Graph().as_default():
@@ -107,11 +109,11 @@ class I3dForCTVolumes:
         batches = list(utils.batcher(data_list, self.batch_size))
         for i, list_batch in tqdm(enumerate(batches), file=os.sys.stderr):
             images_batch, labels_batch = self.process_coupled_data(list_batch)
-            feed_dict = self.coupled_data_to_dict(images_batch, labels=labels_batch, windowing=True, is_training=True)
+            feed_dict = self.coupled_data_to_dict(images_batch, labels=labels_batch, is_training=True)
             self.sess.run(self.train_op, feed_dict=feed_dict)
 
             if i % 20 == 0:
-                feed_dict = self.coupled_data_to_dict(images_batch, labels=labels_batch, windowing=True, is_training=False)
+                feed_dict = self.coupled_data_to_dict(images_batch, labels=labels_batch, is_training=False)
                 acc, loss = self.sess.run([self.accuracy, self.loss], feed_dict=feed_dict)
                 loss_list.append(loss)
                 acc_list.append(acc)
@@ -132,7 +134,7 @@ class I3dForCTVolumes:
         
         print('\nINFO: ++++++++++++++++++++ Validation ++++++++++++++++++++')
         for image_batch, label_batch in tqdm(list(zip(image_iterator, label_iterator)), file=os.sys.stderr):
-            feed_dict = self.coupled_data_to_dict(image_batch, labels=label_batch, windowing=True, is_training=False)
+            feed_dict = self.coupled_data_to_dict(image_batch, labels=label_batch, is_training=False)
             batch_acc, batch_loss, preds = self.sess.run([self.accuracy, self.loss, self.get_preds], feed_dict=feed_dict)
             acc_list.append(batch_acc)
             loss_list.append(batch_loss)
@@ -170,25 +172,30 @@ class I3dForCTVolumes:
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
             print('\nINFO: Positive probability: {}\n\n'.format(preds[0][0]))
 
-    def coupled_data_to_dict(self, images, labels=None, windowing=True, is_training=False):
+    def coupled_data_to_dict(self, images, labels=None, is_training=False):
         # Perform online windowing of image, to save storage space of preprocessed images
-        if windowing:
+        if self.is_compressed:
             images = utils.apply_window(images)
         feed_dict = {self.images_placeholder: images, self.is_training_placeholder: is_training}
         if labels is not None:
                 feed_dict[self.labels_placeholder] = labels
         return feed_dict
 
-    def process_coupled_data(self, coupled_data, progress=False, windowing=True):
+    def process_coupled_data(self, coupled_data, progress=False):
         images = []
         labels = []
         if progress:
             coupled_data = tqdm(coupled_data)
         for cur_file, label in coupled_data:
-            image = np.load(join(self.data_dir, cur_file))['data'].astype(np.float32)
-            if image.shape != (self.num_frames, self.crop_size, self.crop_size):
-                print('\nERROR: Shape mismatch')
-                continue
+
+            if self.is_compressed:
+                image = np.load(join(self.data_dir, cur_file))['data']
+            else:
+                image = np.load(join(self.data_dir, cur_file)).astype(np.float32)
+
+            # if image.shape != (self.num_frames, self.crop_size, self.crop_size):
+            #     print('\nERROR: Shape mismatch')
+            #     continue
             images.append(image)
             labels.append(label)
         np_arr_images = np.array(images)
@@ -208,7 +215,7 @@ def main(args):
     os.makedirs(args.logs_dir + '/val_preds', exist_ok=True)
 
     # Init model wrapper
-    model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, device=args.device, verbose=args.verbose)
+    model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, args.is_compressed, device=args.device, verbose=args.verbose)
 
     # Intitialze with pretrained weights
     ckpt = join(args.data_dir, args.best_ckpt if args.inference else args.i3d_ckpt)
@@ -258,9 +265,9 @@ if __name__ == "__main__":
 
     ##################################################
     EPOCHS = 60
-    BATCH = 1
-    DEBUG = 'new_sm_'
-    GPU = 2
+    BATCH = 3
+    DEBUG = 'ra_'
+    GPU = 0
     ##################################################
 
     parser.add_argument('--epochs', default=EPOCHS, type=int,  help='the number of epochs')
@@ -292,6 +299,9 @@ if __name__ == "__main__":
     parser.add_argument('--inference', default=None, type=str, help='whether to run inference only')
 
     parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
+
+    parser.add_argument('--is_compressed', default=False, type=bool, \
+        help='whether preprocessed data is compressed (unwindowed, npz), or uncompressed (windowed, npy)')
 
     parser.set_defaults()
     main(parser.parse_args())
