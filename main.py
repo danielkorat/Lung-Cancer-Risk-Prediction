@@ -1,26 +1,14 @@
-# ******************************************************************************
-# Copyright 2017-2018 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
-
+VERBOSE_TF = True
 
 import os
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import tensorflow as tf
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR) 
+if not VERBOSE_TF:
+    import warnings
+    warnings.filterwarnings('ignore', category=FutureWarning)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+    import tensorflow as tf
+    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+else:
+    import tensorflow as tf
 from random import shuffle
 import numpy as np
 import argparse
@@ -32,61 +20,6 @@ from sklearn.metrics import roc_auc_score
 from preprocess import preprocess, walk_dicom_dirs
 import utils
 
-def main(args):
-    print('\nINFO: Initializing...')
-    
-    # Set GPU
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
-
-    # Create model dir and log dir if thry doesn't exist
-    os.makedirs(args.save_dir, exist_ok=True)
-    os.makedirs(args.logs_dir, exist_ok=True)
-    os.makedirs(args.logs_dir + '/val_preds', exist_ok=True)
-
-    # Init model wrapper
-    model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, device=args.device, verbose=args.verbose)
-
-    # Intitialze with pretrained weights
-    ckpt = join(args.data_dir, args.best_ckpt if args.inference else args.i3d_ckpt)
-    print('\nINFO: Loading pre-trained model:', ckpt)
-    model.pretrained_saver.restore(model.sess, ckpt)
-
-    if args.inference:
-        print('\nINFO: Begin Inference')
-        model.predict(args.inference)
-    else:
-        print('\nINFO: Begin Training')
-        
-        print('\nINFO: Loading training and validation sets...')
-        prefix = join(args.data_dir, 'lists', args.debug)
-        train_list = utils.load_data_list(prefix + args.train)
-        val_list = utils.load_data_list(prefix + args.test)
-        val_images, val_labels = model.process_coupled_data(val_list)
-        utils.write_number_list(val_labels, 'out/val_true', verbose=model.verbose)
-
-        metrics = {'tr_loss': [], 'tr_acc': [], 'val_loss': [], 'val_acc': [], 'val_auc': []}
-        
-        for epoch in range(1, args.epochs + 1):
-            print('\nINFO: +++++++++++++++++++++ EPOCH {} +++++++++++++++++++++'.format(epoch))
-            start_time = time()
-            shuffle(train_list)
-
-            # Run training for 1 epoch
-            tr_epoch_metrics = model.train_loop(train_list)
-
-            # Save Weights after each epoch
-            print("\nINFO: Saving Weights...")
-            model.saver.save(model.sess, "{}/epoch_{}/model.ckpt".format(args.save_dir, epoch))
-            
-            train_end_time = time()
-            print('\nINFO: Train epoch duration: {:.2f} secs'.format(train_end_time - start_time))
-
-            # Run validation at end of each epoch
-            print("\nINFO: Begin Validation")
-            val_metrics = model.val_loop(val_images, val_labels)
-
-            print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
-            write_metrics(metrics, tr_epoch_metrics, val_metrics, args.logs_dir, epoch, verbose=model.verbose)
 
 def write_metrics(metrics, tr_epoch_metrics, val_metrics, out_dir, epoch, verbose=False):
     tr_epoch_loss, tr_epoch_acc = tr_epoch_metrics
@@ -131,7 +64,7 @@ class I3dForCTVolumes:
             with tf.device('/device:' + device + ':0'):
                 with tf.compat.v1.variable_scope('RGB'):
                     _, end_points = InceptionI3d(num_classes=2, final_endpoint='Predictions')\
-                        (self.images_placeholder, self.is_training_placeholder)
+                        (self.images_placeholder, self.is_training_placeholder, dropout_keep_prob=1.0)
                 self.logits = end_points['Logits']
                 self.preds = end_points['Predictions']
 
@@ -248,8 +181,10 @@ class I3dForCTVolumes:
     def process_coupled_data(self, coupled_data, windowing=True):
         images = []
         labels = []
-        for cur_file, label in coupled_data:
+        for cur_file, label in tqdm(coupled_data):
             image = np.load(join(self.data_dir, cur_file))['data'].astype(np.float32)
+            if image.shape != (self.num_frames, self.crop_size, self.crop_size):
+                continue
             images.append(image)
             labels.append(label)
         np_arr_images = np.array(images)
@@ -257,20 +192,77 @@ class I3dForCTVolumes:
         return np_arr_images, np_arr_labels
 
 
+def main(args):
+    print('\nINFO: Initializing...')
+    
+    # Set GPU
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
+
+    # Create model dir and log dir if thry doesn't exist
+    os.makedirs(args.save_dir, exist_ok=True)
+    os.makedirs(args.logs_dir, exist_ok=True)
+    os.makedirs(args.logs_dir + '/val_preds', exist_ok=True)
+
+    # Init model wrapper
+    model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, device=args.device, verbose=args.verbose)
+
+    # Intitialze with pretrained weights
+    ckpt = join(args.data_dir, args.best_ckpt if args.inference else args.i3d_ckpt)
+    print('\nINFO: Loading pre-trained model:', ckpt)
+    model.pretrained_saver.restore(model.sess, ckpt)
+
+    if args.inference:
+        print('\nINFO: Begin Inference')
+        model.predict(args.inference)
+    else:
+        print('\nINFO: Begin Training')
+        
+        prefix = join(args.data_dir, 'lists', args.debug)
+        train_list = utils.load_data_list(prefix + args.train)
+        val_list = utils.load_data_list(prefix + args.test)
+    
+        print('\nINFO: Loading validation set...')
+        val_images, val_labels = model.process_coupled_data(val_list)
+        utils.write_number_list(val_labels, 'out/val_true', verbose=model.verbose)
+
+        metrics = {'tr_loss': [], 'tr_acc': [], 'val_loss': [], 'val_acc': [], 'val_auc': []}
+        
+        for epoch in range(1, args.epochs + 1):
+            print('\nINFO: +++++++++++++++++++++ EPOCH {} +++++++++++++++++++++'.format(epoch))
+            start_time = time()
+            shuffle(train_list)
+
+            # Run training for 1 epoch
+            tr_epoch_metrics = model.train_loop(train_list)
+
+            # Save Weights after each epoch
+            print("\nINFO: Saving Weights...")
+            model.saver.save(model.sess, "{}/epoch_{}/model.ckpt".format(args.save_dir, epoch))
+            
+            train_end_time = time()
+            print('\nINFO: Train epoch duration: {:.2f} secs'.format(train_end_time - start_time))
+
+            # Run validation at end of each epoch
+            print("\nINFO: Begin Validation")
+            val_metrics = model.val_loop(val_images, val_labels)
+
+            print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
+            write_metrics(metrics, tr_epoch_metrics, val_metrics, args.logs_dir, epoch, verbose=model.verbose)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--epochs', default=3, type=int,  help='the number of epochs')
+    parser.add_argument('--epochs', default=70, type=int,  help='the number of epochs')
 
     parser.add_argument('--batch_size', default=1, type=int, help='the training batch size')
 
-    parser.add_argument('--debug', default='san_', type=str, help='which debug dataset to run')
+    parser.add_argument('--debug', default='', type=str, help='which debug dataset to run')
 
     parser.add_argument('--train', default='train.list', help='path to training data')
 
     parser.add_argument('--test', default='test.list', help='path to training data')
 
-    parser.add_argument('--gpu_id', default="2", type=str, help='gpu id')
+    parser.add_argument('--gpu_id', default="3", type=str, help='gpu id')
     
     parser.add_argument('--data_dir', default=str(dirname(realpath(__file__))) + '/data', help='path to training data')
 
@@ -288,7 +280,7 @@ if __name__ == "__main__":
     #     type=str, help='path to directory of dicom folders to run inference on')
     parser.add_argument('--inference', default=None, type=str, help='whether to run inference only')
 
-    parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
+    parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
 
     parser.set_defaults()
     main(parser.parse_args())

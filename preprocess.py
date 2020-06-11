@@ -299,7 +299,7 @@ def create_train_test_list(positives, negatives, lists_dir, print_dirs=False, sp
 if __name__ == "__main__":
     # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST', overwrite=True)
     # preprocess_all(argv[1])
-    create_train_test_list(positives='datasets/sanity/pos', 
-                            negatives='datasets/sanity/neg', 
-                            lists_dir='sanity_lists', 
-                            base_dir='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/')
+    create_train_test_list(positives='confirmed_scanyr_1_filtered-522_volumes', 
+                            negatives='no_cancer_numscreens_2-971_volumes', 
+                            lists_dir='lists', 
+                            base_dir='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed')
