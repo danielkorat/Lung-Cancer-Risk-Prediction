@@ -69,7 +69,8 @@ class I3dForCTVolumes:
                 self.preds = end_points['Predictions']
 
                 # Loss function
-                self.loss = utils.focal_loss(self.logits[:, 1], self.labels_placeholder)
+                # self.loss = utils.focal_loss(self.logits[:, 1], self.labels_placeholder)
+                self.loss = utils.cross_entropy_loss(self.logits, self.labels_placeholder)
 
                 # Evaluation metrics
                 self.get_preds = utils.get_preds(self.preds)
@@ -104,7 +105,7 @@ class I3dForCTVolumes:
     def train_loop(self, data_list):
         loss_list, acc_list = [], []
         batches = list(utils.batcher(data_list, self.batch_size))
-        for i, list_batch in enumerate(tqdm(batches, file=os.sys.stderr)):
+        for i, list_batch in tqdm(enumerate(batches), file=os.sys.stderr):
             images_batch, labels_batch = self.process_coupled_data(list_batch)
             feed_dict = self.coupled_data_to_dict(images_batch, labels=labels_batch, windowing=True, is_training=True)
             self.sess.run(self.train_op, feed_dict=feed_dict)
@@ -178,12 +179,15 @@ class I3dForCTVolumes:
                 feed_dict[self.labels_placeholder] = labels
         return feed_dict
 
-    def process_coupled_data(self, coupled_data, windowing=True):
+    def process_coupled_data(self, coupled_data, progress=False, windowing=True):
         images = []
         labels = []
-        for cur_file, label in tqdm(coupled_data):
+        if progress:
+            coupled_data = tqdm(coupled_data)
+        for cur_file, label in coupled_data:
             image = np.load(join(self.data_dir, cur_file))['data'].astype(np.float32)
             if image.shape != (self.num_frames, self.crop_size, self.crop_size):
+                print('\nERROR: Shape mismatch')
                 continue
             images.append(image)
             labels.append(label)
@@ -196,7 +200,7 @@ def main(args):
     print('\nINFO: Initializing...')
     
     # Set GPU
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
 
     # Create model dir and log dir if thry doesn't exist
     os.makedirs(args.save_dir, exist_ok=True)
@@ -222,7 +226,7 @@ def main(args):
         val_list = utils.load_data_list(prefix + args.test)
     
         print('\nINFO: Loading validation set...')
-        val_images, val_labels = model.process_coupled_data(val_list)
+        val_images, val_labels = model.process_coupled_data(val_list, progress=True)
         utils.write_number_list(val_labels, 'out/val_true', verbose=model.verbose)
 
         metrics = {'tr_loss': [], 'tr_acc': [], 'val_loss': [], 'val_acc': [], 'val_auc': []}
@@ -252,18 +256,25 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--epochs', default=70, type=int,  help='the number of epochs')
+    ##################################################
+    EPOCHS = 60
+    BATCH = 1
+    DEBUG = 'new_sm_'
+    GPU = 2
+    ##################################################
 
-    parser.add_argument('--batch_size', default=1, type=int, help='the training batch size')
+    parser.add_argument('--epochs', default=EPOCHS, type=int,  help='the number of epochs')
 
-    parser.add_argument('--debug', default='', type=str, help='which debug dataset to run')
+    parser.add_argument('--batch_size', default=BATCH, type=int, help='the training batch size')
+
+    parser.add_argument('--debug', default=DEBUG, type=str, help='prefix of debug train/val sets to run')
+
+    parser.add_argument('--gpu_id', default=GPU, type=int, help='gpu id')
 
     parser.add_argument('--train', default='train.list', help='path to training data')
 
     parser.add_argument('--test', default='test.list', help='path to training data')
 
-    parser.add_argument('--gpu_id', default="3", type=str, help='gpu id')
-    
     parser.add_argument('--data_dir', default=str(dirname(realpath(__file__))) + '/data', help='path to training data')
 
     parser.add_argument('--logs_dir', default=str(dirname(realpath(__file__))) + '/out', help='path to log output dir')
