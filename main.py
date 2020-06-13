@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 
 
 class I3dForCTVolumes:
-    def __init__(self, data_dir, batch_size, is_compressed, learning_rate=0.0001, device='GPU', 
+    def __init__(self, data_dir, batch_size, is_compressed, learning_rate=0.0003, device='GPU', 
                 num_frames=220, crop_size=224, verbose=False):
         self.data_dir = data_dir
         self.crop_size = crop_size
@@ -52,7 +52,7 @@ class I3dForCTVolumes:
                     )
             
             # Learning rate
-            learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
+            # learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
             
             # Optimizer
             optimizer = tf.train.AdamOptimizer(learning_rate)
@@ -287,9 +287,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ##################################################
-    EPOCHS = 4
+    EPOCHS = 60
     BATCH = 2
-    DEBUG = 'new_sm_'
+    DEBUG = 'new_md_'
     GPU = 1
     ##################################################
 

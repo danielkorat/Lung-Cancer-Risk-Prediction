@@ -22,7 +22,7 @@ def load_npz_as_list(npz_file):
 
 def plot_loss(val_loss, tr_loss, plots_dir='plots'):
     figure(num=None, figsize=(16, 8), dpi=100)
-    title = 'Loss'
+    title = 'Training and Validation Loss'
     epochs = range(1, len(val_loss) + 1)
     plt.plot(epochs, val_loss, label='Val. Loss')
     plt.plot(epochs, tr_loss, label='Train Loss')
@@ -35,7 +35,7 @@ def plot_loss(val_loss, tr_loss, plots_dir='plots'):
 
 def plot_acc_auc(val_acc, tr_acc, val_auc, plots_dir='plots'):
     figure(num=None, figsize=(16, 8), dpi=100)
-    title = 'Accuracy and AUC Score'
+    title = 'Accuracy and AUC'
     epochs = range(1, len(val_acc) + 1)
     plt.plot(epochs, val_acc, label='Val. Accuracy')
     plt.plot(epochs, tr_acc, label='Train Accuracy')
