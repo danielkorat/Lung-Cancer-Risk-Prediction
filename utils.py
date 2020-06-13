@@ -7,6 +7,87 @@ import tensorflow as tf
 import math
 import numpy as np
 
+from sklearn.metrics import roc_auc_score, roc_curve
+import scikitplot as skplt
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set_style("darkgrid")
+from matplotlib.pyplot import figure
+
+def pretty_print_floats(lst):
+    return ',  '.join(['{:.3f}'.format(_) for _ in lst])
+
+def load_npz_as_list(npz_file):
+    return np.load('out/' + npz_file)['arr_0'].tolist()
+
+def plot_loss(val_loss, tr_loss, plots_dir='plots'):
+    figure(num=None, figsize=(16, 8), dpi=100)
+    title = 'Loss'
+    epochs = range(1, len(val_loss) + 1)
+    plt.plot(epochs, val_loss, label='Val. Loss')
+    plt.plot(epochs, tr_loss, label='Train Loss')
+    plt.title(title)
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
+    plt.savefig(plots_dir + '/' + title + '.png', bbox_inches='tight')
+
+def plot_acc_auc(val_acc, tr_acc, val_auc, plots_dir='plots'):
+    figure(num=None, figsize=(16, 8), dpi=100)
+    title = 'Accuracy and AUC Score'
+    epochs = range(1, len(val_acc) + 1)
+    plt.plot(epochs, val_acc, label='Val. Accuracy')
+    plt.plot(epochs, tr_acc, label='Train Accuracy')
+    plt.plot(epochs, val_auc, label='Val. AUC')
+    plt.title(title)
+    plt.xlabel('Epoch')
+    plt.ylabel('Score')
+    plt.legend()
+    plt.savefig(plots_dir + '/' + title + '.png', bbox_inches='tight')
+
+def calc_plot_epoch_auc_roc(y, y_probs, title, verbose=False, plots_dir='plots'):
+    y_prob_2_classes = [(1 - p, p) for p in y_probs]
+    fpr, tpr, th = roc_curve(y, y_probs)
+    if verbose:
+        print('TPR:', pretty_print_floats(tpr))
+        print('FPR:', pretty_print_floats(fpr))
+        print('TH: ', pretty_print_floats(th), '\n')
+    auc = roc_auc_score(y, y_probs)
+    title = title + ',  AUC={:.3f}'.format(auc)
+    skplt.metrics.plot_roc(y, y_prob_2_classes, classes_to_plot=[], 
+                           title= title,
+                           figsize=(7, 7), plot_micro=False, plot_macro=True, 
+                           title_fontsize=15, text_fontsize=13)
+    plt.show()
+    plt.savefig(plots_dir + '/' + title + '.png', bbox_inches='tight')
+
+def load_and_plot_epoch_auc(epoch, val_true):
+    val_preds_epoch = load_npz_as_list('val_preds/epoch_' + str(epoch) + '.npz')
+    calc_plot_epoch_auc_roc(val_true, val_preds_epoch, 
+                            'ROC for Epoch {}'.format(epoch))
+
+def plot_metrics(epoch):
+    val_loss = load_npz_as_list('val_loss.npz')
+    val_acc = load_npz_as_list('val_acc.npz')
+    val_auc = load_npz_as_list('val_auc.npz')
+    val_true = load_npz_as_list('val_true.npz')
+    tr_loss = load_npz_as_list('tr_loss.npz')
+    tr_acc = load_npz_as_list('tr_acc.npz')
+
+    plot_loss(val_loss, tr_loss)
+    plot_acc_auc(val_acc, tr_acc, val_auc)
+    load_and_plot_epoch_auc(epoch, val_true)
+
+def write_metrics(metrics, tr_epoch_metrics, val_metrics, out_dir, epoch, verbose=False):
+    tr_epoch_loss, tr_epoch_acc = tr_epoch_metrics
+    val_epoch_loss, val_epoch_acc, val_epoch_auc, val_epoch_preds = val_metrics
+
+    append_and_write((metrics['tr_loss'], tr_epoch_loss, out_dir + '/tr_loss'), (metrics['tr_acc'], tr_epoch_acc, out_dir + '/tr_acc'))
+    append_and_write((metrics['val_loss'], val_epoch_loss, out_dir + '/val_loss'), (metrics['val_acc'], val_epoch_acc, out_dir + '/val_acc'),
+        (metrics['val_auc'], val_epoch_auc, out_dir + '/val_auc'))
+    write_number_list(val_epoch_preds, out_dir + '/val_preds/epoch_{}'.format(epoch), verbose=verbose)
+
 def apply_window(image):
     # Windowing
     # Our values currently range from -1024 to around 2000. 
@@ -20,8 +101,8 @@ def apply_window(image):
 
     # Normalize rgb values to [-1, 1]
     image = (image * 2) - 1
-
-    return np.stack((image, image, image), axis=4)
+    res =  np.stack((image, image, image), axis=4)
+    return res.astype(np.float32)
 
 def write_number_list(lst, f_name, verbose=False):
     if verbose:
@@ -95,10 +176,10 @@ def focal_loss(logits, labels, alpha=0.75, gamma=2):
     return tf.reduce_mean(losses)
 
 def cross_entropy_loss(logits, labels):
-    print('CE Loss variables:')
-    print('labels:', labels)
-    print('logits:', logits)
-    print('logits.shape:', logits.shape)
+    # print('CE Loss variables:')
+    # print('labels:', labels)
+    # print('logits:', logits)
+    # print('logits.shape:', logits.shape)
     cross_entropy_mean = tf.reduce_mean(
                   tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits)
                   )

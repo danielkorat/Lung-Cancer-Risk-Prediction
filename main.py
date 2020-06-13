@@ -24,18 +24,10 @@ import utils
 from time import time
 import matplotlib.pyplot as plt
 
-def write_metrics(metrics, tr_epoch_metrics, val_metrics, out_dir, epoch, verbose=False):
-    tr_epoch_loss, tr_epoch_acc = tr_epoch_metrics
-    val_epoch_loss, val_epoch_acc, val_epoch_auc, val_epoch_preds = val_metrics
-
-    utils.append_and_write((metrics['tr_loss'], tr_epoch_loss, out_dir + '/tr_loss'), (metrics['tr_acc'], tr_epoch_acc, out_dir + '/tr_acc'))
-    utils.append_and_write((metrics['val_loss'], val_epoch_loss, out_dir + '/val_loss'), (metrics['val_acc'], val_epoch_acc, out_dir + '/val_acc'),
-        (metrics['val_auc'], val_epoch_auc, out_dir + '/val_auc'))
-    utils.write_number_list(val_epoch_preds, out_dir + '/val_preds/epoch_{}'.format(epoch), verbose=verbose)
 
 class I3dForCTVolumes:
     def __init__(self, data_dir, batch_size, is_compressed, learning_rate=0.0001, device='GPU', 
-                num_frames=140, crop_size=224, verbose=False):
+                num_frames=220, crop_size=224, verbose=False):
         self.data_dir = data_dir
         self.crop_size = crop_size
         self.num_frames = num_frames
@@ -180,8 +172,8 @@ class I3dForCTVolumes:
         if self.is_compressed:
             images = utils.apply_window(images)
 
-        print('image max val, min val: ', np.max(images), np.min(images))
         # DEBUG - TODO: Remove this
+        # print('image max val, min val: ', np.max(images), np.min(images))
         # img = images[0]
         # plt.imshow(img[img.shape[0] // 2])
         # plt.savefig('debug/' + str(time()) + '.png', bbox_inches='tight')
@@ -199,7 +191,9 @@ class I3dForCTVolumes:
         for cur_file, label in coupled_data:
 
             if self.is_compressed:
-                image = np.load(join(self.data_dir, cur_file))['data']
+                scan_arr = np.load(join(self.data_dir, cur_file))['data']
+                crop_start = scan_arr.shape[0] // 2 - self.num_frames // 2
+                image = scan_arr[crop_start: crop_start + self.num_frames]
             else:
                 # image = np.load(join(self.data_dir, cur_file)).astype(np.float32)
                 try:
@@ -284,16 +278,19 @@ def main(args):
             val_metrics = model.val_loop(val_images, val_labels)
 
             print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
-            write_metrics(metrics, tr_epoch_metrics, val_metrics, args.logs_dir, epoch, verbose=model.verbose)
+
+            print('\nINFO: Writing metrics and their plots...')
+            utils.write_metrics(metrics, tr_epoch_metrics, val_metrics, args.logs_dir, epoch, verbose=model.verbose)
+            utils.plot_metrics(epoch)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ##################################################
-    EPOCHS = 60
-    BATCH = 1
-    DEBUG = 'ra_'
-    GPU = 0
+    EPOCHS = 4
+    BATCH = 2
+    DEBUG = 'new_sm_'
+    GPU = 1
     ##################################################
 
     parser.add_argument('--epochs', default=EPOCHS, type=int,  help='the number of epochs')
@@ -326,7 +323,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
 
-    parser.add_argument('--is_compressed', default=False, type=bool, \
+    parser.add_argument('--is_compressed', default=True, type=bool, \
         help='whether preprocessed data is compressed (unwindowed, npz), or uncompressed (windowed, npy)')
 
     parser.set_defaults()

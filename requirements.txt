@@ -7,3 +7,5 @@ pydicom
 scikit-learn
 scikit-image
 matplotlib
+scikit-plot
+seaborn
