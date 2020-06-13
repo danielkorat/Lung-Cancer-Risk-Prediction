@@ -1,4 +1,4 @@
-VERBOSE_TF = True
+VERBOSE_TF = False
 
 import os
 if not VERBOSE_TF:
@@ -20,6 +20,9 @@ from sklearn.metrics import roc_auc_score
 from preprocess import preprocess, walk_dicom_dirs
 import utils
 
+# TODO: Remove
+from time import time
+import matplotlib.pyplot as plt
 
 def write_metrics(metrics, tr_epoch_metrics, val_metrics, out_dir, epoch, verbose=False):
     tr_epoch_loss, tr_epoch_acc = tr_epoch_metrics
@@ -32,7 +35,7 @@ def write_metrics(metrics, tr_epoch_metrics, val_metrics, out_dir, epoch, verbos
 
 class I3dForCTVolumes:
     def __init__(self, data_dir, batch_size, is_compressed, learning_rate=0.0001, device='GPU', 
-                num_frames=224, crop_size=224, erbose=False):
+                num_frames=140, crop_size=224, verbose=False):
         self.data_dir = data_dir
         self.crop_size = crop_size
         self.num_frames = num_frames
@@ -176,6 +179,13 @@ class I3dForCTVolumes:
         # Perform online windowing of image, to save storage space of preprocessed images
         if self.is_compressed:
             images = utils.apply_window(images)
+
+        print('image max val, min val: ', np.max(images), np.min(images))
+        # DEBUG - TODO: Remove this
+        # img = images[0]
+        # plt.imshow(img[img.shape[0] // 2])
+        # plt.savefig('debug/' + str(time()) + '.png', bbox_inches='tight')
+
         feed_dict = {self.images_placeholder: images, self.is_training_placeholder: is_training}
         if labels is not None:
                 feed_dict[self.labels_placeholder] = labels
@@ -191,7 +201,19 @@ class I3dForCTVolumes:
             if self.is_compressed:
                 image = np.load(join(self.data_dir, cur_file))['data']
             else:
-                image = np.load(join(self.data_dir, cur_file)).astype(np.float32)
+                # image = np.load(join(self.data_dir, cur_file)).astype(np.float32)
+                try:
+                    image = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
+                    # print("\nINFO: Loading image from {}".format(cur_file))
+                    scan_arr = np.load(join(self.data_dir, cur_file)).astype(np.float32)
+                    # print('\nINFO Orig image shape:', scan_arr.shape)
+                    image[:scan_arr.shape[0], :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
+                        scan_arr[:self.num_frames, :self.crop_size, :self.crop_size, :3]
+
+                except Exception as e:
+                    # TODO: filter images which are too small
+                    print("\nERROR Loading image from {} with shape {}".format(cur_file, scan_arr.shape))
+                    print(e)
 
             # if image.shape != (self.num_frames, self.crop_size, self.crop_size):
             #     print('\nERROR: Shape mismatch')
@@ -205,9 +227,10 @@ class I3dForCTVolumes:
 
 def main(args):
     print('\nINFO: Initializing...')
-    
+
     # Set GPU
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
+    if args.device == 'GPU':
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
 
     # Create model dir and log dir if thry doesn't exist
     os.makedirs(args.save_dir, exist_ok=True)
@@ -215,7 +238,10 @@ def main(args):
     os.makedirs(args.logs_dir + '/val_preds', exist_ok=True)
 
     # Init model wrapper
-    model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, args.is_compressed, device=args.device, verbose=args.verbose)
+    model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, is_compressed=args.is_compressed, device=args.device, verbose=args.verbose)
+
+    print('\nINFO: Hyperparams:')
+    print('\n'.join([str(item) for item in vars(args).items()]))
 
     # Intitialze with pretrained weights
     ckpt = join(args.data_dir, args.best_ckpt if args.inference else args.i3d_ckpt)
@@ -265,7 +291,7 @@ if __name__ == "__main__":
 
     ##################################################
     EPOCHS = 60
-    BATCH = 3
+    BATCH = 1
     DEBUG = 'ra_'
     GPU = 0
     ##################################################
@@ -298,7 +324,7 @@ if __name__ == "__main__":
     #     type=str, help='path to directory of dicom folders to run inference on')
     parser.add_argument('--inference', default=None, type=str, help='whether to run inference only')
 
-    parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
+    parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
 
     parser.add_argument('--is_compressed', default=False, type=bool, \
         help='whether preprocessed data is compressed (unwindowed, npz), or uncompressed (windowed, npy)')
