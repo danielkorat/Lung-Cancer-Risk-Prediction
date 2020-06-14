@@ -258,7 +258,7 @@ def main(args):
     
         print('\nINFO: Loading validation set...')
         val_images, val_labels = model.process_coupled_data(val_list, progress=True)
-        utils.write_number_list(val_labels, join(args.out_dir, 'val_true'), verbose=model.verbose)
+        utils.write_number_list(val_labels, join(metrics_dir, 'val_true'), verbose=model.verbose)
 
         metrics = {'tr_loss': [], 'tr_acc': [], 'val_loss': [], 'val_acc': [], 'val_auc': []}
         
