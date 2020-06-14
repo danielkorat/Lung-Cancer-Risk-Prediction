@@ -1,4 +1,4 @@
-VERBOSE_TF = False
+VERBOSE_TF = True
 
 import os
 if not VERBOSE_TF:
@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 
 
 class I3dForCTVolumes:
-    def __init__(self, data_dir, batch_size, is_compressed, learning_rate=0.0003, device='GPU', 
+    def __init__(self, data_dir, batch_size, is_compressed, learning_rate=1e-4, device='GPU', 
                 num_frames=220, crop_size=224, verbose=False):
         self.data_dir = data_dir
         self.crop_size = crop_size
@@ -52,7 +52,7 @@ class I3dForCTVolumes:
                     )
             
             # Learning rate
-            # learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
+            learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
             
             # Optimizer
             optimizer = tf.train.AdamOptimizer(learning_rate)
@@ -107,7 +107,7 @@ class I3dForCTVolumes:
             feed_dict = self.coupled_data_to_dict(images_batch, labels=labels_batch, is_training=True)
             self.sess.run(self.train_op, feed_dict=feed_dict)
 
-            if i % 20 == 0:
+            if i % 1 == 0:
                 feed_dict = self.coupled_data_to_dict(images_batch, labels=labels_batch, is_training=False)
                 acc, loss = self.sess.run([self.accuracy, self.loss], feed_dict=feed_dict)
                 loss_list.append(loss)
@@ -227,9 +227,13 @@ def main(args):
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
 
     # Create model dir and log dir if thry doesn't exist
-    os.makedirs(args.save_dir, exist_ok=True)
-    os.makedirs(args.logs_dir, exist_ok=True)
-    os.makedirs(args.logs_dir + '/val_preds', exist_ok=True)
+    os.makedirs(args.out_dir, exist_ok=True)
+    save_dir = join(args.out_dir, 'models')
+    metrics_dir = join(args.out_dir, 'metrics')
+    plots_dir = join(args.out_dir, 'plots')
+    os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(join(metrics_dir, 'val_preds'), exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
 
     # Init model wrapper
     model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, is_compressed=args.is_compressed, device=args.device, verbose=args.verbose)
@@ -254,7 +258,7 @@ def main(args):
     
         print('\nINFO: Loading validation set...')
         val_images, val_labels = model.process_coupled_data(val_list, progress=True)
-        utils.write_number_list(val_labels, 'out/val_true', verbose=model.verbose)
+        utils.write_number_list(val_labels, join(args.out_dir, 'val_true'), verbose=model.verbose)
 
         metrics = {'tr_loss': [], 'tr_acc': [], 'val_loss': [], 'val_acc': [], 'val_auc': []}
         
@@ -268,7 +272,7 @@ def main(args):
 
             # Save Weights after each epoch
             print("\nINFO: Saving Weights...")
-            model.saver.save(model.sess, "{}/epoch_{}/model.ckpt".format(args.save_dir, epoch))
+            model.saver.save(model.sess, "{}/epoch_{}/model.ckpt".format(save_dir, epoch))
             
             train_end_time = time()
             print('\nINFO: Train epoch duration: {:.2f} secs'.format(train_end_time - start_time))
@@ -280,16 +284,16 @@ def main(args):
             print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
 
             print('\nINFO: Writing metrics and their plots...')
-            utils.write_metrics(metrics, tr_epoch_metrics, val_metrics, args.logs_dir, epoch, verbose=model.verbose)
-            utils.plot_metrics(epoch)
+            utils.write_metrics(metrics, tr_epoch_metrics, val_metrics, metrics_dir, epoch, verbose=model.verbose)
+            utils.plot_metrics(epoch, metrics_dir, plots_dir)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ##################################################
-    EPOCHS = 60
+    EPOCHS = 2
     BATCH = 2
-    DEBUG = 'new_md_'
+    DEBUG = 'new_sm_'
     GPU = 1
     ##################################################
 
@@ -307,11 +311,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--data_dir', default=str(dirname(realpath(__file__))) + '/data', help='path to training data')
 
-    parser.add_argument('--logs_dir', default=str(dirname(realpath(__file__))) + '/out', help='path to log output dir')
+    parser.add_argument('--out_dir', default=str(dirname(realpath(__file__))) + '/out', help='path to output dir for models, metrics and plots')
 
     parser.add_argument('--device', default='GPU', type=str, help='the device to execute on')
-
-    parser.add_argument('--save_dir', default='trained_model', help='path to save model')
 
     parser.add_argument('--best_ckpt', default='epoch_1/model.ckpt', type=str, help='path to previously saved model to load')
 
@@ -321,7 +323,7 @@ if __name__ == "__main__":
     #     type=str, help='path to directory of dicom folders to run inference on')
     parser.add_argument('--inference', default=None, type=str, help='whether to run inference only')
 
-    parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
+    parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
 
     parser.add_argument('--is_compressed', default=True, type=bool, \
         help='whether preprocessed data is compressed (unwindowed, npz), or uncompressed (windowed, npy)')

@@ -13,14 +13,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set_style("darkgrid")
 from matplotlib.pyplot import figure
+from os.path import join
 
 def pretty_print_floats(lst):
     return ',  '.join(['{:.3f}'.format(_) for _ in lst])
 
-def load_npz_as_list(npz_file):
-    return np.load('out/' + npz_file)['arr_0'].tolist()
+def load_npz_as_list(base_dir, npz_file):
+    return np.load(join(base_dir, npz_file))['arr_0'].tolist()
 
-def plot_loss(val_loss, tr_loss, plots_dir='plots'):
+def plot_loss(val_loss, tr_loss, plots_dir):
     figure(num=None, figsize=(16, 8), dpi=100)
     title = 'Training and Validation Loss'
     epochs = range(1, len(val_loss) + 1)
@@ -31,9 +32,9 @@ def plot_loss(val_loss, tr_loss, plots_dir='plots'):
     plt.ylabel('Loss')
     plt.legend()
     plt.show()
-    plt.savefig(plots_dir + '/' + title + '.png', bbox_inches='tight')
+    plt.savefig(join(plots_dir, title + '.png'), bbox_inches='tight')
 
-def plot_acc_auc(val_acc, tr_acc, val_auc, plots_dir='plots'):
+def plot_acc_auc(val_acc, tr_acc, val_auc, plots_dir):
     figure(num=None, figsize=(16, 8), dpi=100)
     title = 'Accuracy and AUC'
     epochs = range(1, len(val_acc) + 1)
@@ -44,9 +45,9 @@ def plot_acc_auc(val_acc, tr_acc, val_auc, plots_dir='plots'):
     plt.xlabel('Epoch')
     plt.ylabel('Score')
     plt.legend()
-    plt.savefig(plots_dir + '/' + title + '.png', bbox_inches='tight')
+    plt.savefig(join(plots_dir, title + '.png'), bbox_inches='tight')
 
-def calc_plot_epoch_auc_roc(y, y_probs, title, verbose=False, plots_dir='plots'):
+def calc_plot_epoch_auc_roc(y, y_probs, title, plots_dir, verbose=False):
     y_prob_2_classes = [(1 - p, p) for p in y_probs]
     fpr, tpr, th = roc_curve(y, y_probs)
     if verbose:
@@ -60,33 +61,33 @@ def calc_plot_epoch_auc_roc(y, y_probs, title, verbose=False, plots_dir='plots')
                            figsize=(7, 7), plot_micro=False, plot_macro=True, 
                            title_fontsize=15, text_fontsize=13)
     plt.show()
-    plt.savefig(plots_dir + '/' + title + '.png', bbox_inches='tight')
+    plt.savefig(join(plots_dir, title) + '.png', bbox_inches='tight')
 
-def load_and_plot_epoch_auc(epoch, val_true):
-    val_preds_epoch = load_npz_as_list('val_preds/epoch_' + str(epoch) + '.npz')
+def load_and_plot_epoch_auc(metrics_dir, epoch, val_true, plots_dir):
+    val_preds_epoch = load_npz_as_list(metrics_dir, 'val_preds/epoch_' + str(epoch) + '.npz')
     calc_plot_epoch_auc_roc(val_true, val_preds_epoch, 
-                            'ROC for Epoch {}'.format(epoch))
+                            'ROC for Epoch {}'.format(epoch), plots_dir)
 
-def plot_metrics(epoch):
-    val_loss = load_npz_as_list('val_loss.npz')
-    val_acc = load_npz_as_list('val_acc.npz')
-    val_auc = load_npz_as_list('val_auc.npz')
-    val_true = load_npz_as_list('val_true.npz')
-    tr_loss = load_npz_as_list('tr_loss.npz')
-    tr_acc = load_npz_as_list('tr_acc.npz')
+def plot_metrics(epoch, metrics_dir, plots_dir):
+    val_loss = load_npz_as_list(metrics_dir, 'val_loss.npz')
+    val_acc = load_npz_as_list(metrics_dir, 'val_acc.npz')
+    val_auc = load_npz_as_list(metrics_dir, 'val_auc.npz')
+    val_true = load_npz_as_list(metrics_dir, 'val_true.npz')
+    tr_loss = load_npz_as_list(metrics_dir, 'tr_loss.npz')
+    tr_acc = load_npz_as_list(metrics_dir, 'tr_acc.npz')
 
-    plot_loss(val_loss, tr_loss)
-    plot_acc_auc(val_acc, tr_acc, val_auc)
-    load_and_plot_epoch_auc(epoch, val_true)
+    plot_loss(val_loss, tr_loss, plots_dir)
+    plot_acc_auc(val_acc, tr_acc, val_auc, plots_dir)
+    load_and_plot_epoch_auc(metrics_dir, epoch, val_true, plots_dir)
 
-def write_metrics(metrics, tr_epoch_metrics, val_metrics, out_dir, epoch, verbose=False):
+def write_metrics(metrics, tr_epoch_metrics, val_metrics, metrics_dir, epoch, verbose=False):
     tr_epoch_loss, tr_epoch_acc = tr_epoch_metrics
     val_epoch_loss, val_epoch_acc, val_epoch_auc, val_epoch_preds = val_metrics
 
-    append_and_write((metrics['tr_loss'], tr_epoch_loss, out_dir + '/tr_loss'), (metrics['tr_acc'], tr_epoch_acc, out_dir + '/tr_acc'))
-    append_and_write((metrics['val_loss'], val_epoch_loss, out_dir + '/val_loss'), (metrics['val_acc'], val_epoch_acc, out_dir + '/val_acc'),
-        (metrics['val_auc'], val_epoch_auc, out_dir + '/val_auc'))
-    write_number_list(val_epoch_preds, out_dir + '/val_preds/epoch_{}'.format(epoch), verbose=verbose)
+    append_and_write((metrics['tr_loss'], tr_epoch_loss, join(metrics_dir, 'tr_loss')), (metrics['tr_acc'], tr_epoch_acc, join(metrics_dir, 'tr_acc')))
+    append_and_write((metrics['val_loss'], val_epoch_loss, join(metrics_dir, 'val_loss')), (metrics['val_acc'], val_epoch_acc, join(metrics_dir, 'val_acc')),
+        (metrics['val_auc'], val_epoch_auc, join(metrics_dir, 'val_auc')))
+    write_number_list(val_epoch_preds, join(metrics_dir, 'val_preds', 'epoch_{}'.format(epoch)), verbose=verbose)
 
 def apply_window(image):
     # Windowing
