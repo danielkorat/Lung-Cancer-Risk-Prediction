@@ -1,4 +1,4 @@
-VERBOSE_TF = True
+VERBOSE_TF = False
 
 import os
 if not VERBOSE_TF:
@@ -165,7 +165,7 @@ class I3dForCTVolumes:
             print('\nINFO: Predicting...')
             feed_dict = self.coupled_data_to_dict(preprocessed_img)
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
-            print('\nINFO: Positive probability: {}\n\n'.format(preds[0][0]))
+            print('\nINFO: Positive of cancer within 1 year: {:.2f}\n\n'.format(preds[0][0]))
 
     def coupled_data_to_dict(self, images, labels=None, is_training=False):
         # Perform online windowing of image, to save storage space of preprocessed images
@@ -319,7 +319,7 @@ if __name__ == "__main__":
     #     type=str, help='path to directory of dicom folders to run inference on')
     parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST/confirmed_scanyr_1_filtered-522_volumes/NLST/100681/01-02-2000-NLST-LSS-92300/2-1OPAGELSQXD3402.512032.00.01.5-36913', type=str, help='path to scan for cancer prediction')
 
-    parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
+    parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
 
     parser.add_argument('--is_compressed', default=True, type=bool, \
         help='whether preprocessed data is compressed (unwindowed, npz), or uncompressed (windowed, npy)')
