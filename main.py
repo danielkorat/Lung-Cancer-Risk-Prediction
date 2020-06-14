@@ -17,7 +17,7 @@ from os.path import join, dirname, realpath
 from time import time
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
-from preprocess import preprocess, walk_dicom_dirs
+from preprocess import preprocess, walk_dicom_dirs, walk_np_files
 import utils
 
 # DEBUG. TODO: Remove
@@ -26,14 +26,15 @@ import matplotlib.pyplot as plt
 
 
 class I3dForCTVolumes:
-    def __init__(self, data_dir, batch_size, is_compressed, learning_rate=1e-4, device='GPU', 
-                num_frames=220, crop_size=224, verbose=False):
+    def __init__(self, data_dir, batch_size, is_compressed, is_preprocessed, learning_rate=1e-4, device='GPU', 
+                num_slices=220, crop_size=224, verbose=False):
         self.data_dir = data_dir
         self.crop_size = crop_size
-        self.num_frames = num_frames
+        self.num_slices = num_slices
         self.batch_size = batch_size
         self.verbose = verbose
         self.is_compressed = is_compressed
+        self.is_preprocessed = is_preprocessed
 
         # pylint: disable=not-context-manager
         with tf.Graph().as_default():
@@ -46,7 +47,7 @@ class I3dForCTVolumes:
 
             # Placeholders
             self.images_placeholder, self.labels_placeholder, self.is_training_placeholder = utils.placeholder_inputs(
-                    num_frames=self.num_frames,
+                    num_slices=self.num_slices,
                     crop_size=self.crop_size,
                     rgb_channels=3
                     )
@@ -154,18 +155,25 @@ class I3dForCTVolumes:
 
     def predict(self, inference_data):
         errors_map = {}
-        for image_dir in tqdm(walk_dicom_dirs(inference_data), file=os.sys.stderr):
+        img_iterator = walk_np_files(inference_data) if self.is_preprocessed else walk_dicom_dirs(inference_data)
+
+        for image_path in tqdm(img_iterator, file=os.sys.stderr):
             try:
-                print('\nINFO: Preprocessing image...')
-                preprocessed_img, _ = preprocess(image_dir, errors_map, self.num_frames, self.crop_size, \
-                    sample_img=False, verbose=self.verbose)
-                preprocessed_img = np.expand_dims(preprocessed_img, axis=0)
+                if not self.is_preprocessed:
+                    print('\nINFO: Preprocessing image...')
+                    preprocessed, _ = preprocess(image_path, errors_map, self.num_slices, self.crop_size, \
+                        sample_img=False, verbose=self.verbose)
+                else:
+                    preprocessed = self.load_np_image(image_path)
             except ValueError as e:
                 print(e)
             print('\nINFO: Predicting...')
-            feed_dict = self.coupled_data_to_dict(preprocessed_img)
+
+            preprocessed = self.crop_image(preprocessed)
+            preprocessed = np.expand_dims(preprocessed, axis=0)
+            feed_dict = self.coupled_data_to_dict(preprocessed)
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
-            print('\nINFO: Probability of cancer within 1 year: {:.5f}\n\n'.format(preds[0][0]))
+            print('\nINFO: Probability of cancer within 1 year: {}\n\n'.format(preds[0][0]))
 
     def coupled_data_to_dict(self, images, labels=None, is_training=False):
         # Perform online windowing of image, to save storage space of preprocessed images
@@ -183,31 +191,37 @@ class I3dForCTVolumes:
                 feed_dict[self.labels_placeholder] = labels
         return feed_dict
 
+    def crop_image(self, scan_arr):
+        if self.is_compressed:
+            crop_start = scan_arr.shape[0] // 2 - self.num_slices // 2
+            image = scan_arr[crop_start: crop_start + self.num_slices]
+        else:
+            try:
+                image = np.zeros((self.num_slices, self.crop_size, self.crop_size, 3)).astype(np.float32)
+                image[:scan_arr.shape[0], :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
+                    scan_arr[:self.num_slices, :self.crop_size, :self.crop_size, :3]
+
+            except Exception as e:
+                # TODO: filter images which are too small
+                print("\nERROR Loading image with shape {}".format(scan_arr.shape))
+                print(e)
+        return image
+
+    def load_np_image(self, img_file):
+        if self.is_compressed:
+            scan_arr = np.load(join(self.data_dir, img_file))['data']
+        else:
+            scan_arr = np.load(join(self.data_dir, img_file)).astype(np.float32)
+        return scan_arr
+
     def process_coupled_data(self, coupled_data, progress=False):
         images = []
         labels = []
         if progress:
             coupled_data = tqdm(coupled_data)
-        for cur_file, label in coupled_data:
-
-            if self.is_compressed:
-                scan_arr = np.load(join(self.data_dir, cur_file))['data']
-                crop_start = scan_arr.shape[0] // 2 - self.num_frames // 2
-                image = scan_arr[crop_start: crop_start + self.num_frames]
-            else:
-                try:
-                    image = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
-                    # print("\nINFO: Loading image from {}".format(cur_file))
-                    scan_arr = np.load(join(self.data_dir, cur_file)).astype(np.float32)
-                    # print('\nINFO Orig image shape:', scan_arr.shape)
-                    image[:scan_arr.shape[0], :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
-                        scan_arr[:self.num_frames, :self.crop_size, :self.crop_size, :3]
-
-                except Exception as e:
-                    # TODO: filter images which are too small
-                    print("\nERROR Loading image from {} with shape {}".format(cur_file, scan_arr.shape))
-                    print(e)
-
+        for img_file, label in coupled_data:
+            scan_arr = self.load_np_image(img_file)
+            image = self.crop_image(scan_arr)
             images.append(image)
             labels.append(label)
         np_arr_images = np.array(images)
@@ -232,7 +246,8 @@ def main(args):
     os.makedirs(plots_dir, exist_ok=True)
 
     # Init model wrapper
-    model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, is_compressed=args.is_compressed, device=args.device, verbose=args.verbose)
+    model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, is_compressed=args.is_compressed, \
+        is_preprocessed=args.is_preprocessed, device=args.device, num_slices=args.num_slices, verbose=args.verbose)
 
     print('\nINFO: Hyperparams:')
     print('\n'.join([str(item) for item in vars(args).items()]))
@@ -243,7 +258,7 @@ def main(args):
     model.pretrained_saver.restore(model.sess, ckpt)
 
     if args.inference:
-        print('\nINFO: Begin Inference')
+        print('\nINFO: Begin Inference \n')
         model.predict(args.inference)
     else:
         print('\nINFO: Begin Training')
@@ -311,18 +326,23 @@ if __name__ == "__main__":
 
     parser.add_argument('--device', default='GPU', type=str, help='the device to execute on')
 
-    parser.add_argument('--ckpt', default='epoch_1', type=str, help='path to previously saved model to load')
-
     parser.add_argument('--i3d_ckpt', default='checkpoints/inflated', type=str, help='path to previously saved model to load')
 
-    # parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST/confirmed_scanyr_1_filtered-522_volumes', \
-    #     type=str, help='path to directory of dicom folders to run inference on')
-    parser.add_argument('--inference', default=None, type=str, help='path to scan for cancer prediction')
+    #####################################################################################################################################
+    parser.add_argument('--ckpt', default='best_model', type=str, help='path to previously saved model to load')
+
+    parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data', \
+        type=str, help='path to scan for cancer prediction')
 
     parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
 
     parser.add_argument('--is_compressed', default=True, type=bool, \
         help='whether preprocessed data is compressed (unwindowed, npz), or uncompressed (windowed, npy)')
+
+    parser.add_argument('--is_preprocessed', default=False, type=bool, \
+        help='whether data for inference is preprocessed np files or raw DICOM dirs')
+
+    parser.add_argument('--num_slices', default=220, type=int, help='number of slices (z dimension) used by the model')
 
     parser.set_defaults()
     main(parser.parse_args())

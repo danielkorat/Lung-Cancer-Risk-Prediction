@@ -6,6 +6,7 @@ import os
 import scipy.ndimage
 import matplotlib.pyplot as plt
 from utils import apply_window
+from pathlib import Path
 
 from skimage import measure, morphology
 from collections import defaultdict
@@ -224,6 +225,25 @@ def walk_dicom_dirs(base_in, base_out=None, print_dirs=True):
                 yield root, base_out + os.path.relpath(root, base_in)
             else:
                 yield root
+
+# def walk_np_files(base_in, print_dirs=True):
+#     print()
+#     for root, _, files in os.walk(base_in):
+#         path = root.split(os.sep)
+#         if print_dirs:
+#             print((len(path) - 1) * '---', os.path.basename(root))
+#         for f in files:
+#             if os.path.splitext(f)[1].startswith('.np'):
+#                 if print_dirs:
+#                     print(f)
+#                     yield root
+
+def walk_np_files(base_in, print_dirs=True):
+    pathlist = Path(base_in).glob('**/*.np*')
+    for path in pathlist:
+        np_path = str(path)
+        print(np_path)
+        yield np_path
 
 def preprocess_all(input_dir, overwrite=False, num_frames=224, crop_size=224):
     start = time.time()

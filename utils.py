@@ -130,17 +130,16 @@ def load_data_list(path):
             coupled_data.append((image_path, int(label)))
     return coupled_data
 
-def placeholder_inputs(num_frames, crop_size, rgb_channels=3):
+def placeholder_inputs(num_slices, crop_size, rgb_channels=3):
     """Generate placeholder variables to represent the input tensors.
 
     These placeholders are used as inputs by the rest of the model building
     code and will be fed from the downloaded data in the .run() loop, below.
 
     Args:
-    batch_size: The batch size will be baked into both placeholders.
-    num_frame_per_clip: The num of frame per clib.
-    crop_size: The crop size of per clib.
-    channels: The input channel of per clib.
+    num_slices: The num of slices per volume.
+    crop_size: The crop size of per volume.
+    channels: The number of RGB input channels per volume.
 
     Returns:
     images_placeholder: Images placeholder.
@@ -150,7 +149,7 @@ def placeholder_inputs(num_frames, crop_size, rgb_channels=3):
     # image and label tensors, except the first dimension is now batch_size
     # rather than the full size of the train or test data sets.
     images_placeholder = tf.placeholder(tf.float32, shape=(None,
-                                                           num_frames,
+                                                           num_slices,
                                                            crop_size,
                                                            crop_size,
                                                            rgb_channels))
