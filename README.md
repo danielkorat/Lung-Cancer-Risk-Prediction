@@ -6,7 +6,7 @@ This repository contains an implementation of the "full-volume" model from the p
 
 [End-to-end lung cancer screening with three-dimensional deep learning on low-dose chest computed tomography.](https://doi.org/10.1038/s41591-019-0447-x)<br/> Ardila, D., Kiraly, A.P., Bharadwaj, S. et al. Nat Med 25, 954–961 (2019).
 
-![Model Workflow](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/images/model_workflow.png)
+![Model Workflow](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/model_workflow.png)
 
 The model uses a three-dimensional (3D) CNN to perform end-to-end analysis of whole-CT volumes, using LDCT
 volumes with pathology-confirmed cancer as training data. 
@@ -16,7 +16,7 @@ Zisserman](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadi
 ### Data
 We use the NLST dataset which contains chest LDCT volumes with pathology-confirmed cancer evaluations. For description and access to the dataset refer to the [NCI website](https://biometry.nci.nih.gov/cdas/learn/nlst/images/).
 
-![Example cases](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/images/example_cases.png)
+![Example cases](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/example_cases.png)
 
 
 ## Running the code

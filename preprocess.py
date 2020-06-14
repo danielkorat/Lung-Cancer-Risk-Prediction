@@ -168,8 +168,8 @@ def preprocess(scan, errors_map, num_frames=224, crop_size=224, windowing=False,
     # Let's resample our patient's pixels to an isomorphic resolution
     resampled_scan, _ = resample(scan_hu, orig_scan, orig_scan_np, [1.2, 1.2, 1.2], verbose=verbose)
     if verbose:
-        print("Shape after resampling:", resampled_scan.shape)
         print("Shape before resampling:", scan_hu.shape)
+        print("Shape after resampling:", resampled_scan.shape)
 
     if resampled_scan.shape[0] < 200:
         errors_map['small_z'] += 1
@@ -201,11 +201,12 @@ def preprocess(scan, errors_map, num_frames=224, crop_size=224, windowing=False,
     lungs_padded[starts[0]: ends[0], starts[1]: ends[1], starts[2]: ends[2]] = \
             resampled_scan[img_starts[0]: img_ends[0], img_starts[1]: img_ends[1], img_starts[2]: img_ends[2]]
 
+    if verbose:
+        print("Final shape", lungs_padded.shape)
+        
     if sample_img:
         # Generate an RGB slice for display
         lungs_rgb = np.stack((lungs_padded, lungs_padded, lungs_padded), axis=3)
-        if verbose:
-            print("Final shape", lungs_padded.shape)
         lungs_sample_slice = lungs_rgb[lungs_rgb.shape[0] // 2]
     else:
         lungs_sample_slice = None

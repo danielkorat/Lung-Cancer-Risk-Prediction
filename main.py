@@ -290,7 +290,7 @@ if __name__ == "__main__":
     EPOCHS = 70
     BATCH = 2
     DEBUG = 'lg_new_'
-    GPU = 1
+    GPU = 0
     ##################################################
 
     parser.add_argument('--epochs', default=EPOCHS, type=int,  help='the number of epochs')
@@ -317,7 +317,7 @@ if __name__ == "__main__":
 
     # parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST/confirmed_scanyr_1_filtered-522_volumes', \
     #     type=str, help='path to directory of dicom folders to run inference on')
-    parser.add_argument('--inference', default=None, type=str, help='whether to run inference only')
+    parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST/confirmed_scanyr_1_filtered-522_volumes/NLST/100681/01-02-2000-NLST-LSS-92300/2-1OPAGELSQXD3402.512032.00.01.5-36913', type=str, help='path to scan for cancer prediction')
 
     parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
 
