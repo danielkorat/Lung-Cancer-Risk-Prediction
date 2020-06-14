@@ -20,7 +20,7 @@ from sklearn.metrics import roc_auc_score
 from preprocess import preprocess, walk_dicom_dirs
 import utils
 
-# TODO: Remove
+# DEBUG. TODO: Remove
 from time import time
 import matplotlib.pyplot as plt
 
@@ -195,7 +195,6 @@ class I3dForCTVolumes:
                 crop_start = scan_arr.shape[0] // 2 - self.num_frames // 2
                 image = scan_arr[crop_start: crop_start + self.num_frames]
             else:
-                # image = np.load(join(self.data_dir, cur_file)).astype(np.float32)
                 try:
                     image = np.zeros((self.num_frames, self.crop_size, self.crop_size, 3)).astype(np.float32)
                     # print("\nINFO: Loading image from {}".format(cur_file))
@@ -209,9 +208,6 @@ class I3dForCTVolumes:
                     print("\nERROR Loading image from {} with shape {}".format(cur_file, scan_arr.shape))
                     print(e)
 
-            # if image.shape != (self.num_frames, self.crop_size, self.crop_size):
-            #     print('\nERROR: Shape mismatch')
-            #     continue
             images.append(image)
             labels.append(label)
         np_arr_images = np.array(images)
@@ -291,9 +287,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ##################################################
-    EPOCHS = 2
+    EPOCHS = 70
     BATCH = 2
-    DEBUG = 'new_sm_'
+    DEBUG = 'lg_new_'
     GPU = 1
     ##################################################
 
