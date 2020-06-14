@@ -156,10 +156,10 @@ def bbox2_3D(img):
     zmin, zmax = np.where(z)[0][[0, -1]]
     return rmin, rmax, cmin, cmax, zmin, zmax
 
-def preprocess(scan, errors_map, num_frames=224, crop_size=224, windowing=False, sample_img=True, verbose=True):
+def preprocess(scan, errors_map, num_slices=224, crop_size=224, voxel_size=1.5, windowing=False, sample_img=True, verbose=True):
     orig_scan = load_scan(scan)
-    num_slices = len(orig_scan)
-    if num_slices < 50:
+    num_orig_slices = len(orig_scan)
+    if num_orig_slices < 50:
         errors_map['insufficient_slices'] += 1
         raise ValueError(scan[-4:] + ': Insufficient muber of slices (<50).')
     orig_scan_np = np.stack([s.pixel_array for s in orig_scan]).astype(np.int16)
@@ -167,14 +167,14 @@ def preprocess(scan, errors_map, num_frames=224, crop_size=224, windowing=False,
     scan_hu = get_pixels_hu(orig_scan)
 
     # Let's resample our patient's pixels to an isomorphic resolution
-    resampled_scan, _ = resample(scan_hu, orig_scan, orig_scan_np, [1.2, 1.2, 1.2], verbose=verbose)
+    resampled_scan, _ = resample(scan_hu, orig_scan, orig_scan_np, [voxel_size, voxel_size, voxel_size], verbose=verbose)
     if verbose:
         print("Shape before resampling:", scan_hu.shape)
         print("Shape after resampling:", resampled_scan.shape)
 
     if resampled_scan.shape[0] < 200:
         errors_map['small_z'] += 1
-        raise ValueError(scan[-4:] + ': Insufficient muber of resampled slices (<200).')
+        raise ValueError(scan[-4:] + ': Insufficient number of resampled slices (<200).')
 
     lung_mask = segment_lung_mask(resampled_scan, True)
 
@@ -184,7 +184,7 @@ def preprocess(scan, errors_map, num_frames=224, crop_size=224, windowing=False,
         print('Bounding box size:', (z_max - z_min, x_max - x_min, y_max - y_min))
 
     lung_center = np.array([z_min + z_max, x_min + x_max, y_min + y_max]) // 2
-    context = np.array([num_frames, crop_size, crop_size])
+    context = np.array([num_slices, crop_size, crop_size])
 
     img_starts = np.array([max(0, lung_center[i] - context[i] // 2) for i in range(3)])
     img_ends = np.array([min(resampled_scan.shape[i], lung_center[i] + context[i] // 2) for i in range(3)])
@@ -198,7 +198,7 @@ def preprocess(scan, errors_map, num_frames=224, crop_size=224, windowing=False,
     starts = context // 2 - img_size // 2
     ends = starts + img_size
 
-    lungs_padded = np.zeros((num_frames, crop_size, crop_size))
+    lungs_padded = np.zeros((num_slices, crop_size, crop_size))
     lungs_padded[starts[0]: ends[0], starts[1]: ends[1], starts[2]: ends[2]] = \
             resampled_scan[img_starts[0]: img_ends[0], img_starts[1]: img_ends[1], img_starts[2]: img_ends[2]]
 
@@ -226,18 +226,6 @@ def walk_dicom_dirs(base_in, base_out=None, print_dirs=True):
             else:
                 yield root
 
-# def walk_np_files(base_in, print_dirs=True):
-#     print()
-#     for root, _, files in os.walk(base_in):
-#         path = root.split(os.sep)
-#         if print_dirs:
-#             print((len(path) - 1) * '---', os.path.basename(root))
-#         for f in files:
-#             if os.path.splitext(f)[1].startswith('.np'):
-#                 if print_dirs:
-#                     print(f)
-#                     yield root
-
 def walk_np_files(base_in, print_dirs=True):
     pathlist = Path(base_in).glob('**/*.np*')
     for path in pathlist:
@@ -245,7 +233,7 @@ def walk_np_files(base_in, print_dirs=True):
         print(np_path)
         yield np_path
 
-def preprocess_all(input_dir, overwrite=False, num_frames=224, crop_size=224):
+def preprocess_all(input_dir, overwrite=False, num_slices=224, crop_size=224, voxel_size=1.5):
     start = time.time()
     scans = os.listdir(input_dir)
     scans.sort()
@@ -257,7 +245,8 @@ def preprocess_all(input_dir, overwrite=False, num_frames=224, crop_size=224):
     for scan_dir_path, out_path in tqdm(walk_dicom_dirs(input_dir, base_out), total=scans_num):
         try:
             os.makedirs(os.path.dirname(out_path), exist_ok=overwrite)
-            preprocessed_scan, scan_rgb_sample = preprocess(scan_dir_path, errors_map, num_frames, crop_size)
+            preprocessed_scan, scan_rgb_sample = \
+                preprocess(scan_dir_path, errors_map, num_slices, crop_size, voxel_size)
 
             plt.imshow(scan_rgb_sample)
             plt.savefig(out_path + '.png', bbox_inches='tight')
@@ -265,7 +254,7 @@ def preprocess_all(input_dir, overwrite=False, num_frames=224, crop_size=224):
 
             valid_scans += 1
             print('\n++++++++++++++++++++++++\nDiagnostics:')
-            print(errors_map)
+            print(errors_map.items())
 
         except FileExistsError as e:
             valid_scans += 1
@@ -318,9 +307,10 @@ def create_train_test_list(positives, negatives, lists_dir, print_dirs=False, sp
 
 
 if __name__ == "__main__":
-    # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST', overwrite=True)
+    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST', \
+        overwrite=True, num_slices=145, voxel_size=1.5)
     # preprocess_all(argv[1])
-    create_train_test_list(positives='confirmed_scanyr_1_filtered-522_volumes', 
-                            negatives='no_cancer_numscreens_2-971_volumes', 
-                            lists_dir='lists', 
-                            base_dir='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed')
+    # create_train_test_list(positives='confirmed_scanyr_1_filtered-522_volumes', 
+    #                         negatives='no_cancer_numscreens_2-971_volumes', 
+    #                         lists_dir='lists', 
+    #                         base_dir='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed')
