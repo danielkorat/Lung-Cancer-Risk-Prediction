@@ -165,7 +165,7 @@ class I3dForCTVolumes:
             print('\nINFO: Predicting...')
             feed_dict = self.coupled_data_to_dict(preprocessed_img)
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
-            print('\nINFO: Positive of cancer within 1 year: {:.2f}\n\n'.format(preds[0][0]))
+            print('\nINFO: Probability of cancer within 1 year: {:.5f}\n\n'.format(preds[0][0]))
 
     def coupled_data_to_dict(self, images, labels=None, is_training=False):
         # Perform online windowing of image, to save storage space of preprocessed images
@@ -238,7 +238,7 @@ def main(args):
     print('\n'.join([str(item) for item in vars(args).items()]))
 
     # Intitialze with pretrained weights
-    ckpt = join(args.data_dir, args.best_ckpt if args.inference else args.i3d_ckpt)
+    ckpt = join(args.data_dir, args.ckpt if args.inference else args.i3d_ckpt, 'model.ckpt')
     print('\nINFO: Loading pre-trained model:', ckpt)
     model.pretrained_saver.restore(model.sess, ckpt)
 
@@ -311,13 +311,13 @@ if __name__ == "__main__":
 
     parser.add_argument('--device', default='GPU', type=str, help='the device to execute on')
 
-    parser.add_argument('--best_ckpt', default='epoch_1/model.ckpt', type=str, help='path to previously saved model to load')
+    parser.add_argument('--ckpt', default='epoch_1', type=str, help='path to previously saved model to load')
 
-    parser.add_argument('--i3d_ckpt', default='checkpoints/inflated/model.ckpt', type=str, help='path to previously saved model to load')
+    parser.add_argument('--i3d_ckpt', default='checkpoints/inflated', type=str, help='path to previously saved model to load')
 
     # parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST/confirmed_scanyr_1_filtered-522_volumes', \
     #     type=str, help='path to directory of dicom folders to run inference on')
-    parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST/confirmed_scanyr_1_filtered-522_volumes/NLST/100681/01-02-2000-NLST-LSS-92300/2-1OPAGELSQXD3402.512032.00.01.5-36913', type=str, help='path to scan for cancer prediction')
+    parser.add_argument('--inference', default=None, type=str, help='path to scan for cancer prediction')
 
     parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
 
