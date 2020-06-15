@@ -306,9 +306,9 @@ if __name__ == "__main__":
     ##################################################
     EPOCHS = 70
     BATCH = 3
-    # DEBUG = 'lg_new_'
-    DEBUG = 'new_sm_'
-    GPU = 0
+    DEBUG = 'lg_new_'
+    # DEBUG = 'new_sm_'
+    GPU = 1
     ##################################################
 
     parser.add_argument('--epochs', default=EPOCHS, type=int,  help='the number of epochs')
