@@ -283,9 +283,9 @@ def create_train_test_list(positives, negatives, lists_dir, print_dirs=False, sp
             if print_dirs:
                 print((len(path) - 1) * '---', os.path.basename(root))
             for f in files:
-                if f.endswith('.npz'):
+                if '.np' in f:
                     path_list.append((root + '/' + f, label))
-        print('\n INFO:', '.npz files with label', label, len(path_list))
+        print('\n INFO:', 'volumes with label', label, len(path_list))
 
     train_list = []
     test_list = []
@@ -310,10 +310,10 @@ def create_train_test_list(positives, negatives, lists_dir, print_dirs=False, sp
 
 
 if __name__ == "__main__":
-    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST2', \
-        overwrite=False, num_slices=145, voxel_size=1.5)
+    # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST2', \
+        # overwrite=False, num_slices=145, voxel_size=1.5)
     # preprocess_all(argv[1])
-    # create_train_test_list(positives='confirmed_scanyr_1_filtered-522_volumes', 
-    #                         negatives='no_cancer_numscreens_2-971_volumes', 
-    #                         lists_dir='lists', 
-    #                         base_dir='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed')
+    create_train_test_list(positives='conflc=confirmed', 
+                            negatives='conflc=confirmed_no_cancer', 
+                            lists_dir='lists', 
+                            base_dir='/workdisk/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed')
