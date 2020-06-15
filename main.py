@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 
 
 class I3dForCTVolumes:
-    def __init__(self, data_dir, batch_size, is_compressed, is_preprocessed, learning_rate=1e-4, device='GPU', 
+    def __init__(self, data_dir, batch_size, is_compressed, is_preprocessed, learning_rate=0.0001, device='GPU', 
                 num_slices=220, crop_size=224, verbose=False):
         self.data_dir = data_dir
         self.crop_size = crop_size
@@ -62,7 +62,7 @@ class I3dForCTVolumes:
             with tf.device('/device:' + device + ':0'):
                 with tf.compat.v1.variable_scope('RGB'):
                     _, end_points = InceptionI3d(num_classes=2, final_endpoint='Predictions')\
-                        (self.images_placeholder, self.is_training_placeholder, dropout_keep_prob=1.0)
+                        (self.images_placeholder, self.is_training_placeholder, dropout_keep_prob=0.8)
                 self.logits = end_points['Logits']
                 self.preds = end_points['Predictions']
 
@@ -236,7 +236,7 @@ def main(args):
     if args.device == 'GPU':
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
 
-    # Create model dir and log dir if thry doesn't exist
+    # Create model dir and log dir if they doesn't exist
     os.makedirs(args.out_dir, exist_ok=True)
     save_dir = join(args.out_dir, 'models')
     metrics_dir = join(args.out_dir, 'metrics')
@@ -270,7 +270,6 @@ def main(args):
         print('\nINFO: Loading validation set...')
         val_images, val_labels = model.process_coupled_data(val_list, progress=True)
         utils.write_number_list(val_labels, join(metrics_dir, 'val_true'), verbose=model.verbose)
-
         metrics = {'tr_loss': [], 'tr_acc': [], 'val_loss': [], 'val_acc': [], 'val_auc': []}
         
         for epoch in range(1, args.epochs + 1):
@@ -302,9 +301,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ##################################################
-    EPOCHS = 70
-    BATCH = 2
-    DEBUG = 'lg_new_'
+    EPOCHS = 40
+    BATCH = 3
+    DEBUG = 'ra_'
     GPU = 0
     ##################################################
 
@@ -329,20 +328,22 @@ if __name__ == "__main__":
     parser.add_argument('--i3d_ckpt', default='checkpoints/inflated', type=str, help='path to previously saved model to load')
 
     #####################################################################################################################################
-    parser.add_argument('--ckpt', default='best_model', type=str, help='path to previously saved model to load')
+    parser.add_argument('--ckpt', default='epoch_70', type=str, help='path to previously saved model to load')
 
-    parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data', \
+    # parser.add_argument('--inference', default='/workdisk/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/conflc=confirmed', \
+    #     type=str, help='path to scan for cancer prediction')
+    parser.add_argument('--inference', default=None, \
         type=str, help='path to scan for cancer prediction')
 
-    parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
+    parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
 
-    parser.add_argument('--is_compressed', default=True, type=bool, \
+    parser.add_argument('--is_compressed', default=False, type=bool, \
         help='whether preprocessed data is compressed (unwindowed, npz), or uncompressed (windowed, npy)')
 
-    parser.add_argument('--is_preprocessed', default=False, type=bool, \
+    parser.add_argument('--is_preprocessed', default=True, type=bool, \
         help='whether data for inference is preprocessed np files or raw DICOM dirs')
 
-    parser.add_argument('--num_slices', default=220, type=int, help='number of slices (z dimension) used by the model')
+    parser.add_argument('--num_slices', default=140, type=int, help='number of slices (z dimension) used by the model')
 
     parser.set_defaults()
     main(parser.parse_args())
