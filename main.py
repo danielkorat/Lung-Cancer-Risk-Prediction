@@ -19,7 +19,8 @@ from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 from preprocess import preprocess, walk_dicom_dirs, walk_np_files
 import utils
-
+from time import strftime
+from datetime import date
 
 class I3dForCTVolumes:
     def __init__(self, data_dir, batch_size, is_compressed, is_preprocessed, learning_rate=0.0001, device='GPU', 
@@ -226,8 +227,8 @@ class I3dForCTVolumes:
 
 def create_output_dirs(args):
     # Create model dir and log dir if they doesn't exist
-
-    out_dir_time = args.out_dir + '_' + str(time())
+    timestamp = date.today().strftime("%A_") + strftime("%H:%M:%S")
+    out_dir_time = args.out_dir + '_' + timestamp)
 
     os.makedirs(out_dir_time, exist_ok=True)
     save_dir = join(out_dir_time, 'models')
