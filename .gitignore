@@ -146,6 +146,5 @@ data/datasets
 preprocess.log
 visual_logs/
 models/
-out/
 trained_model/
 out*/

@@ -20,10 +20,6 @@ from sklearn.metrics import roc_auc_score
 from preprocess import preprocess, walk_dicom_dirs, walk_np_files
 import utils
 
-# DEBUG. TODO: Remove
-from time import time
-import matplotlib.pyplot as plt
-
 
 class I3dForCTVolumes:
     def __init__(self, data_dir, batch_size, is_compressed, is_preprocessed, learning_rate=0.0001, device='GPU', 
@@ -228,6 +224,19 @@ class I3dForCTVolumes:
         np_arr_labels = np.array(labels).astype(np.int64)
         return np_arr_images, np_arr_labels
 
+def create_output_dirs(args):
+    # Create model dir and log dir if they doesn't exist
+
+    out_dir_time = args.out_dir + '_' + str(time())
+
+    os.makedirs(out_dir_time, exist_ok=True)
+    save_dir = join(out_dir_time, 'models')
+    metrics_dir = join(out_dir_time, 'metrics')
+    plots_dir = join(out_dir_time, 'plots')
+    os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(join(metrics_dir, 'val_preds'), exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
+    return save_dir, metrics_dir, plots_dir
 
 def main(args):
     print('\nINFO: Initializing...')
@@ -236,15 +245,6 @@ def main(args):
     if args.device == 'GPU':
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
 
-    # Create model dir and log dir if they doesn't exist
-    os.makedirs(args.out_dir, exist_ok=True)
-    save_dir = join(args.out_dir, 'models')
-    metrics_dir = join(args.out_dir, 'metrics')
-    plots_dir = join(args.out_dir, 'plots')
-    os.makedirs(save_dir, exist_ok=True)
-    os.makedirs(join(metrics_dir, 'val_preds'), exist_ok=True)
-    os.makedirs(plots_dir, exist_ok=True)
-
     # Init model wrapper
     model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, is_compressed=args.is_compressed, \
         is_preprocessed=args.is_preprocessed, device=args.device, num_slices=args.num_slices, verbose=args.verbose)
@@ -252,7 +252,7 @@ def main(args):
     print('\nINFO: Hyperparams:')
     print('\n'.join([str(item) for item in vars(args).items()]))
 
-    # Intitialze with pretrained weights
+    # Load pretrained weights
     ckpt = join(args.data_dir, args.ckpt if args.inference else args.i3d_ckpt, 'model.ckpt')
     print('\nINFO: Loading pre-trained model:', ckpt)
     model.pretrained_saver.restore(model.sess, ckpt)
@@ -263,6 +263,8 @@ def main(args):
     else:
         print('\nINFO: Begin Training')
         
+        save_dir, metrics_dir, plots_dir = create_output_dirs(args)
+
         prefix = join(args.data_dir, 'lists', args.debug)
         train_list = utils.load_data_list(prefix + args.train)
         val_list = utils.load_data_list(prefix + args.test)
