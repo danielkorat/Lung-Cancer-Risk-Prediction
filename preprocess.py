@@ -221,7 +221,8 @@ def walk_dicom_dirs(base_in, base_out=None, print_dirs=True):
         path = root.split(os.sep)
         if print_dirs:
             print((len(path) - 1) * '---', os.path.basename(root))
-        if len(files) >= 50 and os.path.splitext(files[0])[0].isdigit():
+        sample_filename = os.path.splitext(files[0])
+        if len(files) >= 50 and (sample_filename[0].isdigit() or 'dcm' in sample_filename[1]):
             if base_out:
                 yield root, base_out + os.path.relpath(root, base_in)
             else:
