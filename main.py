@@ -158,8 +158,9 @@ class I3dForCTVolumes:
             try:
                 if not self.is_preprocessed:
                     print('\nINFO: Preprocessing image...')
-                    preprocessed, _ = preprocess(image_path, errors_map, self.num_slices, self.crop_size, \
-                        sample_img=False, verbose=self.verbose)
+                    preprocessed, _  = preprocess_old(image_path, errors_map)
+                    # preprocessed, _ = preprocess(image_path, errors_map, self.num_slices, self.crop_size, \
+                        # sample_img=False, verbose=self.verbose)
                 else:
                     preprocessed = self.load_np_image(image_path)
             except ValueError as e:
@@ -345,13 +346,13 @@ if __name__ == "__main__":
 
     parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
 
-    parser.add_argument('--is_compressed', default=True, type=bool, \
+    parser.add_argument('--is_compressed', default=False, type=bool, \
         help='whether preprocessed data is compressed (unwindowed, npz), or uncompressed (windowed, npy)')
 
-    parser.add_argument('--is_preprocessed', default=True, type=bool, \
+    parser.add_argument('--is_preprocessed', default=False, type=bool, \
         help='whether data for inference is preprocessed np files or raw DICOM dirs')
 
-    parser.add_argument('--num_slices', default=145, type=int, help='number of slices (z dimension) used by the model')
+    parser.add_argument('--num_slices', default=140, type=int, help='number of slices (z dimension) used by the model')
 
     parser.set_defaults()
     main(parser.parse_args())

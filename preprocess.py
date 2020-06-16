@@ -309,6 +309,73 @@ def create_train_test_list(positives, negatives, lists_dir, print_dirs=False, sp
             train_f.write(path + ' ' + label + '\n')
 
 
+def preprocess_old(scan, errors_map, context=200):
+    print('scan:', scan)
+    
+    orig_scan = load_scan(scan)
+    num_slices = len(orig_scan)
+    if num_slices < 50:
+        errors_map['insufficient_slices'] += 1
+        raise ValueError(scan[-4:] + ': number of slices is less than 50')
+    orig_scan_np = np.stack([s.pixel_array for s in orig_scan]).astype(np.int16)
+
+    scan_hu = get_pixels_hu(orig_scan)
+
+    # Let's resample our patient's pixels to an isomorphic resolution of 1.5 by 1.5 by 1.5 mm.
+    print("Shape before resampling\t", scan_hu.shape)
+    resampled_scan, spacing = resample(scan_hu, orig_scan, orig_scan_np, [1.5,1.5,1.5])
+    print("Shape after resampling\t", resampled_scan.shape)
+
+    if resampled_scan.shape[0] < 200:
+        errors_map['small_z'] += 1
+        raise ValueError(scan[-4:] + ': resampled Z dimension is less than 200')
+
+    lung_mask = segment_lung_mask(resampled_scan, True)
+
+    # plt.imshow(orig_scan_np[orig_scan_np.shape[0]//2], cmap=plt.cm.gray)
+    # plt.savefig('out_preprocess/in_' + scan[-4:] + '.png', bbox_inches='tight')
+
+    z_min, z_max, x_min, x_max, y_min, y_max = bbox2_3D(lung_mask)
+    print('Lung bounding box (min,max):', (z_min, z_max), (x_min, x_max), (y_min, y_max))
+    box_size = (z_max - z_min, x_max - x_min, y_max - y_min)
+    print('Bounding box size:', box_size)
+    
+    z_start = (z_max + z_min) // 2 - context // 2
+    z_end = z_start + context
+    y_start = (y_max + y_min) // 2 - context // 2
+    y_end = y_start + context
+    x_start = (x_max + x_min) // 2 - context // 2
+    x_end = x_start + context
+
+    print('starts,end:', (z_start, z_end), (x_start, x_end), (y_start, y_end))
+
+    if x_start < 0 or y_start < 0 or y_start < 0:
+        errors_map['bad_seg'] += 1
+        raise ValueError(scan[-4:] + ': bad segmentation')
+
+    windowed_scan = apply_window(resampled_scan)
+
+    # lung_bounds = windowed_scan[(z_max - z_min) // 2, x_min: x_max, y_min: y_max]
+    # plt.imshow(lung_bounds, cmap=plt.cm.gray)
+    # plt.savefig('out_preprocess/lung_bounds_' + scan[-4:] + '.png', bbox_inches='tight')
+
+    mid_slice = windowed_scan.shape[0] // 2
+    # plt.imshow(windowed_scan[mid_slice], cmap=plt.cm.gray)
+    # plt.savefig('out_preprocess/norm_resampled_' + scan[-4:] + '.png', bbox_inches='tight')
+
+    lung_context = windowed_scan[max(0, z_start) : z_end, max(0, x_start) : x_end, max(0, y_start) : y_end]
+
+    # plt.imshow(lung_context[z_start + (context//2)], cmap=plt.cm.gray)
+    # plt.savefig('out_preprocess/lung_context_' + scan[-4:] + '.png', bbox_inches='tight')
+
+    lung_rgb = np.stack((lung_context, lung_context, lung_context), axis=3)      
+    lung_rgb_sample = lung_rgb[lung_rgb.shape[0]//2]
+
+    lung_rgb_norm = (lung_rgb * 2.0) - 1.0
+    print("Final shape\t", lung_rgb_norm.shape, '\n\n')
+
+    return lung_rgb_norm, lung_rgb_sample
+
 if __name__ == "__main__":
     # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST2', \
     #     overwrite=False, num_slices=145, voxel_size=1.5)
