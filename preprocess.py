@@ -23,7 +23,7 @@ from random import shuffle
 
 # Load a volume from the given folder path
 def load_scan(path):
-    slices = [dicom.read_file(path + '/' + s) for s in os.listdir(path) if os.path.splitext(s)[0].isdigit()]
+    slices = [dicom.read_file(path + '/' + s) for s in os.listdir(path) if os.path.splitext(s)[0].isdigit() or 'dcm' in os.path.splitext(s)[1]]
     slices.sort(key = lambda x: float(x.ImagePositionPatient[2]))
 
     if not slices[0].SliceThickness:
@@ -216,12 +216,11 @@ def preprocess(scan, errors_map, num_slices=224, crop_size=224, voxel_size=1.5, 
     return lungs_padded, lungs_sample_slice
     
 def walk_dicom_dirs(base_in, base_out=None, print_dirs=True):
-    print()
     for root, _, files in os.walk(base_in):
         path = root.split(os.sep)
         if print_dirs:
             print((len(path) - 1) * '---', os.path.basename(root))
-        sample_filename = os.path.splitext(files[0])
+        # sample_filename = os.path.splitext(files[0])
         if len(files) >= 50: # and (sample_filename[0].isdigit() or 'dcm' in sample_filename[1]):
             if base_out:
                 yield root, base_out + os.path.relpath(root, base_in)
@@ -247,13 +246,15 @@ def preprocess_all(input_dir, overwrite=False, num_slices=224, crop_size=224, vo
     for scan_dir_path, out_path in tqdm(walk_dicom_dirs(input_dir, base_out), total=scans_num):
         try:
             out_dir = os.path.dirname(out_path)
-            if overwrite or not os.path.exists(out_dir) or not os.listdir(out_dir):
-                preprocessed_scan, scan_rgb_sample = \
-                    preprocess(scan_dir_path, errors_map, num_slices, crop_size, voxel_size)
+            os.makedirs(out_dir, exist_ok=True)
 
+            if overwrite or not os.path.exists(out_dir) or not os.listdir(out_dir):
+                # preprocessed_scan, scan_rgb_sample = \
+                #     preprocess(scan_dir_path, errors_map, num_slices, crop_size, voxel_size)
+                preprocessed_scan, scan_rgb_sample = \
+                    preprocess_old(scan_dir_path, errors_map)
                 plt.imshow(scan_rgb_sample)
                 plt.savefig(out_path + '.png', bbox_inches='tight')
-                os.makedirs(out_dir, exist_ok=True)
                 np.savez_compressed(out_path + '.npz', data=preprocessed_scan)
 
             valid_scans += 1
@@ -354,7 +355,7 @@ def preprocess_old(scan, errors_map, context=200):
         errors_map['bad_seg'] += 1
         raise ValueError(scan[-4:] + ': bad segmentation')
 
-    windowed_scan = apply_window(resampled_scan)
+    windowed_scan = apply_window(resampled_scan, axis=3)
 
     # lung_bounds = windowed_scan[(z_max - z_min) // 2, x_min: x_max, y_min: y_max]
     # plt.imshow(lung_bounds, cmap=plt.cm.gray)
@@ -369,19 +370,20 @@ def preprocess_old(scan, errors_map, context=200):
     # plt.imshow(lung_context[z_start + (context//2)], cmap=plt.cm.gray)
     # plt.savefig('out_preprocess/lung_context_' + scan[-4:] + '.png', bbox_inches='tight')
 
-    lung_rgb = np.stack((lung_context, lung_context, lung_context), axis=3)      
-    lung_rgb_sample = lung_rgb[lung_rgb.shape[0]//2]
+    # lung_rgb = np.stack((lung_context, lung_context, lung_context), axis=3)      
+    lung_rgb_sample = lung_context[lung_context.shape[0]//2]
 
-    lung_rgb_norm = (lung_rgb * 2.0) - 1.0
-    print("Final shape\t", lung_rgb_norm.shape, '\n\n')
+    print("Final shape\t", lung_context.shape, '\n\n')
 
-    return lung_rgb_norm, lung_rgb_sample
+    return lung_context, lung_rgb_sample
 
 if __name__ == "__main__":
     # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST2', \
     #     overwrite=False, num_slices=145, voxel_size=1.5)
+    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data', \
+        overwrite=True)
     # preprocess_all(argv[1])
-    create_train_test_list(positives='/datasets/NLST2_preprocessed/confirmed_scanyr_1_filtered-522_volumes', 
-                            negatives='/datasets/NLST2_preprocessed/no_cancer_numscreens_2-971_volumes', 
-                            lists_dir='lists', 
-                            base_dir='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data')
+    # create_train_test_list(positives='/datasets/NLST2_preprocessed/confirmed_scanyr_1_filtered-522_volumes', 
+    #                         negatives='/datasets/NLST2_preprocessed/no_cancer_numscreens_2-971_volumes', 
+    #                         lists_dir='lists', 
+    #                         base_dir='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data')

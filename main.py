@@ -1,5 +1,4 @@
 VERBOSE_TF = False
-
 import os
 if not VERBOSE_TF:
     import warnings
@@ -21,17 +20,15 @@ from preprocess import preprocess, walk_dicom_dirs, walk_np_files
 import utils
 from time import strftime
 from datetime import date
+from collections import defaultdict
 
 class I3dForCTVolumes:
-    def __init__(self, data_dir, batch_size, is_compressed, is_preprocessed, learning_rate=0.0001, device='GPU', 
-                num_slices=220, crop_size=224, verbose=False):
-        self.data_dir = data_dir
-        self.crop_size = crop_size
-        self.num_slices = num_slices
-        self.batch_size = batch_size
-        self.verbose = verbose
-        self.is_compressed = is_compressed
-        self.is_preprocessed = is_preprocessed
+    def __init__(self, args):
+        self.args = args
+
+        # This is the shape of both dimensions of each slice of the volume.
+        # The final volume shape fed to the model is [self.args.num_slices, 224, 224]
+        self.slice_size = 224
 
         # pylint: disable=not-context-manager
         with tf.Graph().as_default():
@@ -44,22 +41,20 @@ class I3dForCTVolumes:
 
             # Placeholders
             self.images_placeholder, self.labels_placeholder, self.is_training_placeholder = utils.placeholder_inputs(
-                    num_slices=self.num_slices,
-                    crop_size=self.crop_size,
+                    num_slices=self.args.num_slices,
+                    crop_size=self.args.crop_size,
                     rgb_channels=3
                     )
             
-            # Learning rate
-            learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
-            
-            # Optimizer
+            # Learning rate and optimizer
+            learning_rate = tf.train.exponential_decay(self.args.lr, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
             optimizer = tf.train.AdamOptimizer(learning_rate)
 
             # Init I3D model
-            with tf.device('/device:' + device + ':0'):
+            with tf.device('/device:' + self.args.device + ':0'):
                 with tf.compat.v1.variable_scope('RGB'):
                     _, end_points = InceptionI3d(num_classes=2, final_endpoint='Predictions')\
-                        (self.images_placeholder, self.is_training_placeholder, dropout_keep_prob=0.8)
+                        (self.images_placeholder, self.is_training_placeholder, dropout_keep_prob=args.keep_prob)
                 self.logits = end_points['Logits']
                 self.preds = end_points['Predictions']
 
@@ -97,119 +92,92 @@ class I3dForCTVolumes:
             self.sess = tf.Session(config=run_config)
             self.sess.run(init)
 
+    def batches(self, images, labels):
+        image_batches = utils.batcher(images, self.args.batch_size)
+        label_batches = utils.batcher(labels, self.args.batch_size)
+        return list(zip(image_batches, label_batches))
+
     def train_loop(self, data_list):
-        loss_list, acc_list = [], []
-        batches = list(utils.batcher(data_list, self.batch_size))
-        for i, list_batch in tqdm(enumerate(batches), file=os.sys.stderr):
-            images_batch, labels_batch = self.process_coupled_data(list_batch)
-            feed_dict = self.coupled_data_to_dict(images_batch, labels=labels_batch, is_training=True)
+        images, labels = self.process_coupled_data(data_list)
+        coupled_batches = self.batches(images, labels)
+        for image_batch, label_batch in tqdm(coupled_batches):
+            feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=True)
             self.sess.run(self.train_op, feed_dict=feed_dict)
+            
+        mean_loss, mean_acc, auc, preds_list = self.evaluate(mages, labels, ds='Train')
+        return mean_loss, mean_acc, auc, preds_list
 
-            if i % 1 == 0:
-                feed_dict = self.coupled_data_to_dict(images_batch, labels=labels_batch, is_training=False)
-                acc, loss = self.sess.run([self.accuracy, self.loss], feed_dict=feed_dict)
-                loss_list.append(loss)
-                acc_list.append(acc)
-        
-        tr_loss = np.mean(loss_list)
-        tr_acc = np.mean(acc_list)
-        print("\nINFO: Train accuracy: {:.4f}".format(tr_acc))
-        print("\nINFO: Train loss: {:.4f}".format(tr_loss))
-        return tr_loss, tr_acc
-
-    def val_loop(self, images, labels):
-        acc_list = []
-        loss_list = []
-        preds_list = []
-
-        image_iterator = utils.batcher(images, self.batch_size)
-        label_iterator = utils.batcher(labels, self.batch_size)
+    def evaluate(self, images, labels, ds='Val.'):
+        coupled_batches = self.batches(images, labels)
+        loss_list, acc_list, preds_list = [], [], []
         
         print('\nINFO: ++++++++++++++++++++ Validation ++++++++++++++++++++')
-        for image_batch, label_batch in tqdm(list(zip(image_iterator, label_iterator)), file=os.sys.stderr):
-            feed_dict = self.coupled_data_to_dict(image_batch, labels=label_batch, is_training=False)
-            batch_acc, batch_loss, preds = self.sess.run([self.accuracy, self.loss, self.get_preds], feed_dict=feed_dict)
-            acc_list.append(batch_acc)
-            loss_list.append(batch_loss)
+        for image_batch, label_batch in tqdm(coupled_batches):
+            feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=False)
+            acc, loss, preds = self.sess.run([self.accuracy, self.loss, self.get_preds], feed_dict=feed_dict)
+            loss_list.append(loss)
+            acc_list.append(acc)
             preds_list.extend(preds)
 
-        if self.verbose:
-            print('\nDEBUG: Val. preds: ', preds_list)
-            print('\nDEBUG: Val. labels: ', labels)
-            print('\nDEBUG: Val Batch accuracy: ', acc_list)
-            print('\nDEBUG: Val Batch Loss: ', loss_list)
+        if self.args.verbose:
+            print('\nDEBUG: {}. Preds/Labels: {}'.format(ds, zip(preds_list, labels)))
+            print('\nDEBUG: {} Batch accuracy/loss: {}'.format(ds, zip(acc_list, loss_list)))
 
         mean_acc = np.mean(acc_list)
         mean_loss = np.mean(loss_list)
         auc_score = roc_auc_score(labels, preds_list)
-
         print('\n' + '=' * 34)
-        print("||  INFO: Val Accuracy: {:.4f} ||".format(mean_acc))
-        print("||  INFO: Val Loss:     {:.4f} ||".format(mean_loss))
-        print("||  INFO: Val AUC:      {:.4f} ||".format(auc_score))
+        print("||  INFO: {} Accuracy: {:.4f} ||".format(ds, mean_acc))
+        print("||  INFO: {} Loss:     {:.4f} ||".format(ds, mean_loss))
+        print("||  INFO: {} AUC:      {:.4f} ||".format(ds, auc_score))
         print('=' * 34)
         return mean_loss, mean_acc, auc_score, preds_list
 
     def predict(self, inference_data):
-        errors_map = {}
-        img_iterator = walk_np_files(inference_data) if self.is_preprocessed else walk_dicom_dirs(inference_data)
-
+        errors_map = defaultdict(int)
+        img_iterator = walk_np_files(inference_data) if self.args.is_preprocessed else walk_dicom_dirs(inference_data)
+        
         for image_path in tqdm(img_iterator, file=os.sys.stderr):
             try:
-                if not self.is_preprocessed:
+                if not self.args.is_preprocessed:
                     print('\nINFO: Preprocessing image...')
-                    preprocessed, _  = preprocess_old(image_path, errors_map)
-                    # preprocessed, _ = preprocess(image_path, errors_map, self.num_slices, self.crop_size, \
-                        # sample_img=False, verbose=self.verbose)
+                    preprocessed, _ = preprocess(image_path, errors_map, self.args.num_slices, self.crop_size, \
+                        sample_img=False, verbose=self.args.verbose)
                 else:
                     preprocessed = self.load_np_image(image_path)
             except ValueError as e:
-                print(e)
-            print('\nINFO: Predicting...')
+                raise e
 
-            preprocessed = self.crop_image(preprocessed)
-            preprocessed = np.expand_dims(preprocessed, axis=0)
-            feed_dict = self.coupled_data_to_dict(preprocessed)
+            print('\nINFO: Predicting...')
+            cropped = self.crop_image(preprocessed)
+            singleton_batch = np.expand_dims(cropped, axis=0)
+            feed_dict = self.coupled_data_to_dict(singleton_batch)
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
             print('\nINFO: Probability of cancer within 1 year: {}\n\n'.format(preds[0][0]))
 
-    def coupled_data_to_dict(self, images, labels=None, is_training=False):
+            preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
+            print('\nINFO: 2 Probability of cancer within 1 year: {}\n\n'.format(preds[0][0]))
+
+    def coupled_data_to_dict(self, image_batch, labels=None, is_training=False):
         # Perform online windowing of image, to save storage space of preprocessed images
-        if self.is_compressed:
-            images = utils.apply_window(images)
+        image_batch = utils.apply_window(image_batch)
+        if labels is None:
+            labels = np.zeros_like(self.labels_placeholder)
+        feed_dict = {self.images_placeholder: image_batch, self.labels_placeholder: labels, self.is_training_placeholder: is_training}
 
-        # DEBUG - TODO: Remove this
-        # print('image max val, min val: ', np.max(images), np.min(images))
-        # img = images[0]
-        # plt.imshow(img[img.shape[0] // 2])
-        # plt.savefig('debug/' + str(time()) + '.png', bbox_inches='tight')
-
-        feed_dict = {self.images_placeholder: images, self.is_training_placeholder: is_training}
-        if labels is not None:
-                feed_dict[self.labels_placeholder] = labels
         return feed_dict
 
     def crop_image(self, scan_arr):
-        if self.is_compressed:
-            crop_start = scan_arr.shape[0] // 2 - self.num_slices // 2
-            image = scan_arr[crop_start: crop_start + self.num_slices]
-        else:
-            try:
-                image = np.zeros((self.num_slices, self.crop_size, self.crop_size, 3)).astype(np.float32)
-                image[:scan_arr.shape[0], :scan_arr.shape[1], :scan_arr.shape[2], :3] = \
-                    scan_arr[:self.num_slices, :self.crop_size, :self.crop_size, :3]
-
-            except Exception as e:
-                # TODO: filter images which are too small
-                print("\nERROR Loading image with shape {}".format(scan_arr.shape))
-                print(e)
+        crop_start = scan_arr.shape[0] // 2 - self.args.num_slices // 2
+        image = scan_arr[crop_start: crop_start + self.args.num_slices]
         return image
 
     def load_np_image(self, img_file):
-        if self.is_compressed:
-            scan_arr = np.load(join(self.data_dir, img_file))['data']
+        compressed = img_file.endswith('.npz')
+        if compressed:
+            scan_arr = np.load(join(self.args.data_dir, img_file))['data']
         else:
-            scan_arr = np.load(join(self.data_dir, img_file)).astype(np.float32)
+            scan_arr = np.load(join(self.args.data_dir, img_file)).astype(np.float32)
         return scan_arr
 
     def process_coupled_data(self, coupled_data, progress=False):
@@ -241,6 +209,7 @@ def create_output_dirs(args):
     plots_dir = join(out_dir_time, 'plots')
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(join(metrics_dir, 'val_preds'), exist_ok=True)
+    os.makedirs(join(metrics_dir, 'tr_preds'), exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
     return save_dir, metrics_dir, plots_dir
 
@@ -252,8 +221,7 @@ def main(args):
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
 
     # Init model wrapper
-    model = I3dForCTVolumes(data_dir=args.data_dir, batch_size=args.batch_size, is_compressed=args.is_compressed, \
-        is_preprocessed=args.is_preprocessed, device=args.device, num_slices=args.num_slices, verbose=args.verbose)
+    model = I3dForCTVolumes(args)
 
     print('\nINFO: Hyperparams:')
     print('\n'.join([str(item) for item in vars(args).items()]))
@@ -277,7 +245,7 @@ def main(args):
     
         print('\nINFO: Loading validation set...')
         val_images, val_labels = model.process_coupled_data(val_list, progress=True)
-        utils.write_number_list(val_labels, join(metrics_dir, 'val_true'), verbose=model.verbose)
+        utils.write_number_list(val_labels, join(metrics_dir, 'val_true'), verbose=args.verbose)
         metrics = {'tr_loss': [], 'tr_acc': [], 'val_loss': [], 'val_acc': [], 'val_auc': []}
         
         for epoch in range(1, args.epochs + 1):
@@ -297,13 +265,14 @@ def main(args):
 
             # Run validation at end of each epoch
             print("\nINFO: Begin Validation")
-            val_metrics = model.val_loop(val_images, val_labels)
+            val_metrics = model.evaluate(val_images, val_labels)
 
             print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
 
             print('\nINFO: Writing metrics and their plots...')
-            utils.write_metrics(metrics, tr_epoch_metrics, val_metrics, metrics_dir, epoch, verbose=model.verbose)
+            utils.write_metrics(metrics, tr_epoch_metrics, val_metrics, metrics_dir, epoch, verbose=args.verbose)
             utils.plot_metrics(epoch, metrics_dir, plots_dir)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -311,8 +280,8 @@ if __name__ == "__main__":
     ##################################################
     EPOCHS = 60
     BATCH = 3
-    # DEBUG = 'ra_'
-    DEBUG = ''
+    DEBUG = 'deb_'
+    # DEBUG = ''
     GPU = 1
     ##################################################
 
@@ -336,23 +305,15 @@ if __name__ == "__main__":
 
     parser.add_argument('--i3d_ckpt', default='checkpoints/inflated', type=str, help='path to previously saved model to load')
 
-    #####################################################################################################################################
     parser.add_argument('--ckpt', default='best_model', type=str, help='path to previously saved model to load')
 
-    parser.add_argument('--inference', default='/workdisk/Lung-Cancer-Risk-Prediction/sample_data', \
-        type=str, help='path to scan for cancer prediction')
-    # parser.add_argument('--inference', default=None, \
-    #     type=str, help='path to scan for cancer prediction')
+    parser.add_argument('--inference', default=None, type=str, help='path to scan for cancer prediction')
 
     parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
 
-    parser.add_argument('--is_compressed', default=False, type=bool, \
-        help='whether preprocessed data is compressed (unwindowed, npz), or uncompressed (windowed, npy)')
+    parser.add_argument('--is_preprocessed', default=True, type=bool, help='whether data for inference is preprocessed np files or raw DICOM dirs')
 
-    parser.add_argument('--is_preprocessed', default=False, type=bool, \
-        help='whether data for inference is preprocessed np files or raw DICOM dirs')
-
-    parser.add_argument('--num_slices', default=140, type=int, help='number of slices (z dimension) used by the model')
+    parser.add_argument('--num_slices', default=145, type=int, help='number of slices (z dimension) used by the model')
 
     parser.set_defaults()
     main(parser.parse_args())

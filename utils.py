@@ -34,13 +34,14 @@ def plot_loss(val_loss, tr_loss, plots_dir):
     plt.show()
     plt.savefig(join(plots_dir, title + '.png'), bbox_inches='tight')
 
-def plot_acc_auc(val_acc, tr_acc, val_auc, plots_dir):
+def plot_acc_auc(val_acc, tr_acc, val_auc, tr_auc, plots_dir):
     figure(num=None, figsize=(16, 8), dpi=100)
     title = 'Accuracy and AUC'
     epochs = range(1, len(val_acc) + 1)
     plt.plot(epochs, val_acc, label='Val. Accuracy')
     plt.plot(epochs, tr_acc, label='Train Accuracy')
     plt.plot(epochs, val_auc, label='Val. AUC')
+    plt.plot(epochs, tr_auc, label='Train AUC')
     plt.title(title)
     plt.xlabel('Epoch')
     plt.ylabel('Score')
@@ -63,9 +64,13 @@ def calc_plot_epoch_auc_roc(y, y_probs, title, plots_dir, verbose=False):
     plt.show()
     plt.savefig(join(plots_dir, title) + '.png', bbox_inches='tight')
 
-def load_and_plot_epoch_auc(metrics_dir, epoch, val_true, plots_dir):
+def load_and_plot_epoch_auc(metrics_dir, epoch, val_true, tr_true, plots_dir):
     val_preds_epoch = load_npz_as_list(metrics_dir, 'val_preds/epoch_' + str(epoch) + '.npz')
     calc_plot_epoch_auc_roc(val_true, val_preds_epoch, 
+                            'ROC for Epoch {}'.format(epoch), plots_dir)
+
+    tr_preds_epoch = load_npz_as_list(metrics_dir, 'tr_preds/epoch_' + str(epoch) + '.npz')
+    calc_plot_epoch_auc_roc(tr_true, tr_preds_epoch, 
                             'ROC for Epoch {}'.format(epoch), plots_dir)
 
 def plot_metrics(epoch, metrics_dir, plots_dir):
@@ -73,23 +78,23 @@ def plot_metrics(epoch, metrics_dir, plots_dir):
     val_acc = load_npz_as_list(metrics_dir, 'val_acc.npz')
     val_auc = load_npz_as_list(metrics_dir, 'val_auc.npz')
     val_true = load_npz_as_list(metrics_dir, 'val_true.npz')
+
     tr_loss = load_npz_as_list(metrics_dir, 'tr_loss.npz')
     tr_acc = load_npz_as_list(metrics_dir, 'tr_acc.npz')
+    tr_auc = load_npz_as_list(metrics_dir, 'tr_auc.npz')
+    tr_true = load_npz_as_list(metrics_dir, 'tr_true.npz')
 
     plot_loss(val_loss, tr_loss, plots_dir)
-    plot_acc_auc(val_acc, tr_acc, val_auc, plots_dir)
-    load_and_plot_epoch_auc(metrics_dir, epoch, val_true, plots_dir)
+    plot_acc_auc(val_acc, tr_acc, val_auc, tr_auc, plots_dir)
+    load_and_plot_epoch_auc(metrics_dir, epoch, val_true, tr_true, plots_dir)
 
-def write_metrics(metrics, tr_epoch_metrics, val_metrics, metrics_dir, epoch, verbose=False):
-    tr_epoch_loss, tr_epoch_acc = tr_epoch_metrics
-    val_epoch_loss, val_epoch_acc, val_epoch_auc, val_epoch_preds = val_metrics
+def write_metrics(metrics, tr_metrics, val_metrics, metrics_dir, epoch, verbose=False):
+    for (loss, acc, auc, preds), ds in zip([tr_metrics, 'tr'], [val_metrics, 'val']):
+        for key, metric in [(loss, 'loss'), (acc, 'acc'), (auc, 'auc'), (preds, 'preds')]:
+            append_and_write(metrics[ds + '_' + key], metric, join(metrics_dir, key))
+        write_number_list(preds, join(metrics_dir, ds + '_preds', 'epoch_{}'.format(epoch)), verbose=verbose)
 
-    append_and_write((metrics['tr_loss'], tr_epoch_loss, join(metrics_dir, 'tr_loss')), (metrics['tr_acc'], tr_epoch_acc, join(metrics_dir, 'tr_acc')))
-    append_and_write((metrics['val_loss'], val_epoch_loss, join(metrics_dir, 'val_loss')), (metrics['val_acc'], val_epoch_acc, join(metrics_dir, 'val_acc')),
-        (metrics['val_auc'], val_epoch_auc, join(metrics_dir, 'val_auc')))
-    write_number_list(val_epoch_preds, join(metrics_dir, 'val_preds', 'epoch_{}'.format(epoch)), verbose=verbose)
-
-def apply_window(image):
+def apply_window(image, axis=4):
     # Windowing
     # Our values currently range from -1024 to around 2000. 
     # Anything above 400 is not interesting to us, as these are simply bones with different radiodensity.  
@@ -102,7 +107,7 @@ def apply_window(image):
 
     # Normalize rgb values to [-1, 1]
     image = (image * 2) - 1
-    res =  np.stack((image, image, image), axis=4)
+    res =  np.stack((image, image, image), axis=axis)
     return res.astype(np.float32)
 
 def write_number_list(lst, f_name, verbose=False):
@@ -195,12 +200,3 @@ def get_preds(preds):
 
 def get_logits(logits):
     return logits
-
-
-# metrics_dir = '/workdisk/Lung-Cancer-Risk-Prediction/out_success/metrics'
-# plots_dir = '/workdisk/Lung-Cancer-Risk-Prediction/plot_success'
-# val_loss = load_npz_as_list(metrics_dir, 'val_loss.npz')
-# tr_loss = load_npz_as_list(metrics_dir, 'tr_loss.npz')
-# # val_loss = val_loss[:47] + val_loss[54:]
-# # tr_loss = tr_loss[:47] + tr_loss[54:]
-# plot_loss(val_loss, tr_loss, plots_dir)
