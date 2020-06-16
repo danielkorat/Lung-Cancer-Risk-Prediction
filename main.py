@@ -313,7 +313,7 @@ if __name__ == "__main__":
     BATCH = 3
     # DEBUG = 'ra_'
     DEBUG = ''
-    GPU = 0
+    GPU = 1
     ##################################################
 
     parser.add_argument('--epochs', default=EPOCHS, type=int,  help='the number of epochs')
@@ -337,12 +337,12 @@ if __name__ == "__main__":
     parser.add_argument('--i3d_ckpt', default='checkpoints/inflated', type=str, help='path to previously saved model to load')
 
     #####################################################################################################################################
-    parser.add_argument('--ckpt', default='epoch_70', type=str, help='path to previously saved model to load')
+    parser.add_argument('--ckpt', default='best_model', type=str, help='path to previously saved model to load')
 
-    # parser.add_argument('--inference', default='/workdisk/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/conflc=confirmed', \
-    #     type=str, help='path to scan for cancer prediction')
-    parser.add_argument('--inference', default=None, \
+    parser.add_argument('--inference', default='/workdisk/Lung-Cancer-Risk-Prediction/sample_data', \
         type=str, help='path to scan for cancer prediction')
+    # parser.add_argument('--inference', default=None, \
+    #     type=str, help='path to scan for cancer prediction')
 
     parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
 

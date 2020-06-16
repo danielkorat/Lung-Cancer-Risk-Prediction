@@ -143,6 +143,7 @@ dmypy.json
 *.log
 
 data/datasets
+data/best_model
 preprocess.log
 visual_logs/
 models/
