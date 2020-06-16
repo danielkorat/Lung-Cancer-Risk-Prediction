@@ -217,10 +217,14 @@ class I3dForCTVolumes:
         if progress:
             coupled_data = tqdm(coupled_data)
         for img_file, label in coupled_data:
-            scan_arr = self.load_np_image(img_file)
-            image = self.crop_image(scan_arr)
-            images.append(image)
-            labels.append(label)
+            try:
+                scan_arr = self.load_np_image(img_file)
+                image = self.crop_image(scan_arr)
+                images.append(image)
+                labels.append(label)
+            except:
+                print('ERROR !!! Could not load:', img_file)
+                
         np_arr_images = np.array(images)
         np_arr_labels = np.array(labels).astype(np.int64)
         return np_arr_images, np_arr_labels
@@ -228,7 +232,7 @@ class I3dForCTVolumes:
 def create_output_dirs(args):
     # Create model dir and log dir if they doesn't exist
     timestamp = date.today().strftime("%A_") + strftime("%H:%M:%S")
-    out_dir_time = args.out_dir + '_' + timestamp)
+    out_dir_time = args.out_dir + '_' + timestamp
 
     os.makedirs(out_dir_time, exist_ok=True)
     save_dir = join(out_dir_time, 'models')
@@ -304,9 +308,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ##################################################
-    EPOCHS = 40
+    EPOCHS = 60
     BATCH = 3
-    DEBUG = 'ra_'
+    # DEBUG = 'ra_'
+    DEBUG = ''
     GPU = 0
     ##################################################
 
@@ -340,13 +345,13 @@ if __name__ == "__main__":
 
     parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
 
-    parser.add_argument('--is_compressed', default=False, type=bool, \
+    parser.add_argument('--is_compressed', default=True, type=bool, \
         help='whether preprocessed data is compressed (unwindowed, npz), or uncompressed (windowed, npy)')
 
     parser.add_argument('--is_preprocessed', default=True, type=bool, \
         help='whether data for inference is preprocessed np files or raw DICOM dirs')
 
-    parser.add_argument('--num_slices', default=140, type=int, help='number of slices (z dimension) used by the model')
+    parser.add_argument('--num_slices', default=145, type=int, help='number of slices (z dimension) used by the model')
 
     parser.set_defaults()
     main(parser.parse_args())

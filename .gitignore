@@ -128,7 +128,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-*.dcm
+# *.dcm
 *.nii
 *.gz
 *.mhd
@@ -148,3 +148,4 @@ visual_logs/
 models/
 trained_model/
 out*/
+*.xml

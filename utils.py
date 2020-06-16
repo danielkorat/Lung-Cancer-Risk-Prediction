@@ -197,10 +197,10 @@ def get_logits(logits):
     return logits
 
 
-metrics_dir = '/workdisk/Lung-Cancer-Risk-Prediction/out_success/metrics'
-plots_dir = '/workdisk/Lung-Cancer-Risk-Prediction/plot_success'
-val_loss = load_npz_as_list(metrics_dir, 'val_loss.npz')
-tr_loss = load_npz_as_list(metrics_dir, 'tr_loss.npz')
-# val_loss = val_loss[:47] + val_loss[54:]
-# tr_loss = tr_loss[:47] + tr_loss[54:]
-plot_loss(val_loss, tr_loss, plots_dir)
+# metrics_dir = '/workdisk/Lung-Cancer-Risk-Prediction/out_success/metrics'
+# plots_dir = '/workdisk/Lung-Cancer-Risk-Prediction/plot_success'
+# val_loss = load_npz_as_list(metrics_dir, 'val_loss.npz')
+# tr_loss = load_npz_as_list(metrics_dir, 'tr_loss.npz')
+# # val_loss = val_loss[:47] + val_loss[54:]
+# # tr_loss = tr_loss[:47] + tr_loss[54:]
+# plot_loss(val_loss, tr_loss, plots_dir)
