@@ -4,14 +4,8 @@ import i3d
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
 
-_SAMPLE_VIDEO_FRAMES = 79
-_IMAGE_SIZE = 224
-_NUM_CLASSES  = 2
-ROOT = '/home/daniel_nlp/Lung-Cancer-Detection-and-Classification/kinetics-i3d/data/'
-
 def assign(global_vars, model_path):
     reader = tf.pywrap_tensorflow.NewCheckpointReader(model_path)
-    var_map = {}
     for var_3d in global_vars:
         if 'Logits' not in var_3d.op.name:
             var_2d_name = var_3d.op.name.replace('RGB/inception_i3d', 'InceptionV1')
@@ -29,13 +23,12 @@ def assign(global_vars, model_path):
             else:
                 var_3d.assign(tf.convert_to_tensor(var_value.reshape(var_3d.get_shape())))
 
-def inflate_inception_v1_checkpoint_to_i3d(ckpt_2d, ckpt_3d):
+def inflate_inception_v1_checkpoint_to_i3d(ckpt_2d, ckpt_3d, num_slices=145, image_size=224, num_classes=2):
     rgb_input = tf.placeholder(tf.float32,
-        shape=(1, _SAMPLE_VIDEO_FRAMES, _IMAGE_SIZE, _IMAGE_SIZE, 3))
+        shape=(1, num_slices, image_size, image_size, 3))
     with tf.variable_scope('RGB'):
-        rgb_model = i3d.InceptionI3d(
-        _NUM_CLASSES, spatial_squeeze=True, final_endpoint='Logits')
-        rgb_logits, _ = rgb_model(rgb_input, is_training=False, dropout_keep_prob=1.0)
+        i3d.InceptionI3d(num_classes, spatial_squeeze=True, final_endpoint='Logits')\
+                        (rgb_input, is_training=False)
     
     init_op = tf.compat.v1.global_variables_initializer()
     with tf.Session() as sess:
@@ -46,4 +39,6 @@ def inflate_inception_v1_checkpoint_to_i3d(ckpt_2d, ckpt_3d):
 def inspect_checkpoint(ckpt):
     print_tensors_in_checkpoint_file(ckpt, all_tensors=False, tensor_name='')
 
-inflate_inception_v1_checkpoint_to_i3d(ROOT + 'checkpoints/2d/inception_v1.ckpt', ROOT + 'checkpoints/inflated/model.ckpt')
+if __name__ == "__main__":
+    # Usage example:
+    inflate_inception_v1_checkpoint_to_i3d('path/to/inception_v1.ckpt', 'path/to/new/i3d_model.ckpt')

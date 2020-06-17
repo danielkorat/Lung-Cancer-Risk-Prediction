@@ -89,9 +89,11 @@ def plot_metrics(epoch, metrics_dir, plots_dir):
     load_and_plot_epoch_auc(metrics_dir, epoch, val_true, tr_true, plots_dir)
 
 def write_metrics(metrics, tr_metrics, val_metrics, metrics_dir, epoch, verbose=False):
-    for (loss, acc, auc, preds), ds in zip([tr_metrics, 'tr'], [val_metrics, 'val']):
-        for key, metric in [(loss, 'loss'), (acc, 'acc'), (auc, 'auc'), (preds, 'preds')]:
-            append_and_write(metrics[ds + '_' + key], metric, join(metrics_dir, key))
+    for (loss, acc, auc, preds), ds in ((tr_metrics, 'tr'), (val_metrics, 'val')):
+        for metric, key in [(loss, 'loss'), (acc, 'acc'), (auc, 'auc'), (preds, 'preds')]:
+            name = ds + '_' + key
+            metrics[name].append(metric)
+            write_number_list(metrics[name], join(metrics_dir, name))
         write_number_list(preds, join(metrics_dir, ds + '_preds', 'epoch_{}'.format(epoch)), verbose=verbose)
 
 def apply_window(image, axis=4):
@@ -115,12 +117,6 @@ def write_number_list(lst, f_name, verbose=False):
         print('INFO: Saving ' + f_name + '.npz ...')
         print(lst)
     np.savez(f_name + '.npz', np.array(lst))       
-
-def append_and_write(*args):
-    for lst, new_item, f_name in args:
-        # print(f_name + ' :', '\n', 'Items:', lst, '\n New item:', new_item)
-        lst.append(new_item)
-        write_number_list(lst, f_name)
 
 def batcher(iterable, batch_size=1):
     iter_len = len(iterable)

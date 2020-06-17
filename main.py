@@ -42,7 +42,7 @@ class I3dForCTVolumes:
             # Placeholders
             self.images_placeholder, self.labels_placeholder, self.is_training_placeholder = utils.placeholder_inputs(
                     num_slices=self.args.num_slices,
-                    crop_size=self.args.crop_size,
+                    crop_size=self.slice_size,
                     rgb_channels=3
                     )
             
@@ -97,14 +97,16 @@ class I3dForCTVolumes:
         label_batches = utils.batcher(labels, self.args.batch_size)
         return list(zip(image_batches, label_batches))
 
-    def train_loop(self, data_list):
+    def train_loop(self, data_list, metrics_dir):
         images, labels = self.process_coupled_data(data_list)
+        utils.write_number_list(labels, join(metrics_dir, 'tr_true'), verbose=self.args.verbose)
+
         coupled_batches = self.batches(images, labels)
         for image_batch, label_batch in tqdm(coupled_batches):
             feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=True)
             self.sess.run(self.train_op, feed_dict=feed_dict)
             
-        mean_loss, mean_acc, auc, preds_list = self.evaluate(mages, labels, ds='Train')
+        mean_loss, mean_acc, auc, preds_list = self.evaluate(images, labels, ds='Train')
         return mean_loss, mean_acc, auc, preds_list
 
     def evaluate(self, images, labels, ds='Val.'):
@@ -141,7 +143,7 @@ class I3dForCTVolumes:
             try:
                 if not self.args.is_preprocessed:
                     print('\nINFO: Preprocessing image...')
-                    preprocessed, _ = preprocess(image_path, errors_map, self.args.num_slices, self.crop_size, \
+                    preprocessed, _ = preprocess(image_path, errors_map, self.args.num_slices, self.slice_size, \
                         sample_img=False, verbose=self.args.verbose)
                 else:
                     preprocessed = self.load_np_image(image_path)
@@ -173,8 +175,7 @@ class I3dForCTVolumes:
         return image
 
     def load_np_image(self, img_file):
-        compressed = img_file.endswith('.npz')
-        if compressed:
+        if img_file.endswith('.npz'):
             scan_arr = np.load(join(self.args.data_dir, img_file))['data']
         else:
             scan_arr = np.load(join(self.args.data_dir, img_file)).astype(np.float32)
@@ -246,17 +247,15 @@ def main(args):
         print('\nINFO: Loading validation set...')
         val_images, val_labels = model.process_coupled_data(val_list, progress=True)
         utils.write_number_list(val_labels, join(metrics_dir, 'val_true'), verbose=args.verbose)
-        metrics = {'tr_loss': [], 'tr_acc': [], 'val_loss': [], 'val_acc': [], 'val_auc': []}
+        metrics = defaultdict(list)
         
         for epoch in range(1, args.epochs + 1):
             print('\nINFO: +++++++++++++++++++++ EPOCH {} +++++++++++++++++++++'.format(epoch))
             start_time = time()
             shuffle(train_list)
 
-            # Run training for 1 epoch
-            tr_epoch_metrics = model.train_loop(train_list)
-
-            # Save Weights after each epoch
+            # Run training for 1 epoch and save weights to file
+            tr_epoch_metrics = model.train_loop(train_list, metrics_dir)
             print("\nINFO: Saving Weights...")
             model.saver.save(model.sess, "{}/epoch_{}/model.ckpt".format(save_dir, epoch))
             
@@ -278,8 +277,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ##################################################
-    EPOCHS = 60
-    BATCH = 3
+    EPOCHS = 2
+    BATCH = 2
     DEBUG = 'deb_'
     # DEBUG = ''
     GPU = 1
@@ -314,6 +313,10 @@ if __name__ == "__main__":
     parser.add_argument('--is_preprocessed', default=True, type=bool, help='whether data for inference is preprocessed np files or raw DICOM dirs')
 
     parser.add_argument('--num_slices', default=145, type=int, help='number of slices (z dimension) used by the model')
+
+    parser.add_argument('--lr', default=0.0001, type=int, help='initial learning rate')
+
+    parser.add_argument('--keep_prob', default=1.0, type=int, help='dropout keep prob')
 
     parser.set_defaults()
     main(parser.parse_args())
