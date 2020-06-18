@@ -47,8 +47,8 @@ class I3dForCTVolumes:
                     )
             
             # Learning rate and optimizer
-            learning_rate = tf.train.exponential_decay(self.args.lr, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
-            optimizer = tf.train.AdamOptimizer(learning_rate)
+            # learning_rate = tf.train.exponential_decay(self.args.lr, global_step, decay_steps=3000, decay_rate=0.1, staircase=True)
+            optimizer = tf.train.AdamOptimizer(self.args.lr)
 
             # Init I3D model
             with tf.device('/device:' + self.args.device + ':0'):
@@ -277,10 +277,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     ##################################################
-    EPOCHS = 2
+    EPOCHS = 80
     BATCH = 2
-    DEBUG = 'deb_'
-    # DEBUG = ''
+    DEBUG = ''
+    # DEBUG = '1_'
     GPU = 1
     ##################################################
 
@@ -312,9 +312,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--is_preprocessed', default=True, type=bool, help='whether data for inference is preprocessed np files or raw DICOM dirs')
 
-    parser.add_argument('--num_slices', default=145, type=int, help='number of slices (z dimension) used by the model')
+    parser.add_argument('--num_slices', default=220, type=int, help='number of slices (z dimension) used by the model')
 
-    parser.add_argument('--lr', default=0.0001, type=int, help='initial learning rate')
+    parser.add_argument('--lr', default=0.00005, type=int, help='initial learning rate')
 
     parser.add_argument('--keep_prob', default=1.0, type=int, help='dropout keep prob')
 

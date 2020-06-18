@@ -1,0 +1,5 @@
+/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/confirmed_scanyr_1_filtered-522_volumes/NLST/210612/01-02-2000-NLST-ACRIN-90490/2-1OPASESEN16B30f280212051341.5-06434.npz 1
+/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/confirmed_scanyr_1_filtered-522_volumes/NLST/130133/01-02-2000-NLST-LSS-91354/8750-1OPAPHMX8000C3063.2120.00000045.036.01.25-51146.npz 1
+/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/no_cancer_numscreens_2-971_volumes/NLST/101169/01-02-2001-NLST-LSS-98123/3-2OPASEVZOOMB50f380212075.040.0null-29215.npz 0
+/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/no_cancer_numscreens_2-971_volumes/NLST/122461/01-02-1999-NLST-LSS-58785/4-0OPATOAQUL4FC51335.92-15170.npz 0
+/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST_preprocessed/no_cancer_numscreens_2-971_volumes/NLST/104383/01-02-2000-NLST-LSS-81359/3-1OPASEVZOOMB50f342212075.040.0null-91424.npz 0

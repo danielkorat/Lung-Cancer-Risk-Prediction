@@ -380,10 +380,10 @@ def preprocess_old(scan, errors_map, context=200):
 if __name__ == "__main__":
     # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data/datasets/NLST2', \
     #     overwrite=False, num_slices=145, voxel_size=1.5)
-    preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data', \
-        overwrite=True)
+    # preprocess_all('/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data', \
+    #     overwrite=True)
     # preprocess_all(argv[1])
-    # create_train_test_list(positives='/datasets/NLST2_preprocessed/confirmed_scanyr_1_filtered-522_volumes', 
-    #                         negatives='/datasets/NLST2_preprocessed/no_cancer_numscreens_2-971_volumes', 
-    #                         lists_dir='lists', 
-    #                         base_dir='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data')
+    create_train_test_list(positives='datasets/NLST_preprocessed/confirmed_scanyr_1_filtered-522_volumes', 
+                            negatives='/datasets/NLST_preprocessed/no_cancer_numscreens_2-971_volumes', 
+                            lists_dir='lists', 
+                            base_dir='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/data')
