@@ -89,7 +89,7 @@ def plot_metrics(epoch, metrics_dir, plots_dir):
     load_and_plot_epoch_auc(metrics_dir, epoch, val_true, tr_true, plots_dir)
 
 def write_metrics(metrics, tr_metrics, val_metrics, metrics_dir, epoch, verbose=False):
-    for (loss, acc, auc, preds), ds in ((tr_metrics, 'tr'), (val_metrics, 'val')):
+    for (loss, acc, auc, preds, _), ds in ((tr_metrics, 'tr'), (val_metrics, 'val')):
         for metric, key in [(loss, 'loss'), (acc, 'acc'), (auc, 'auc'), (preds, 'preds')]:
             name = ds + '_' + key
             metrics[name].append(metric)
@@ -130,6 +130,9 @@ def load_data_list(path):
             image_path, label = line.split()
             coupled_data.append((image_path, int(label)))
     return coupled_data
+
+def get_list_labels(coupled_data):
+        return np.array([l for _, l in coupled_data]).astype(np.int64)
 
 def placeholder_inputs(num_slices, crop_size, rgb_channels=3):
     """Generate placeholder variables to represent the input tensors.

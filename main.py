@@ -92,48 +92,43 @@ class I3dForCTVolumes:
             self.sess = tf.Session(config=run_config)
             self.sess.run(init)
 
-    def batches(self, images, labels):
-        image_batches = utils.batcher(images, self.args.batch_size)
-        label_batches = utils.batcher(labels, self.args.batch_size)
-        return list(zip(image_batches, label_batches))
-
-    def train_loop(self, data_list, metrics_dir):
-        images, labels = self.process_coupled_data(data_list)
-        utils.write_number_list(labels, join(metrics_dir, 'tr_true'), verbose=self.args.verbose)
-
-        coupled_batches = self.batches(images, labels)
-        for image_batch, label_batch in tqdm(coupled_batches):
-            feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=True)
+    def train_loop(self, train_list, metrics_dir):
+        train_batches = utils.batcher(train_list, self.args.batch_size)
+        for coupled_batch in tqdm(train_batches):
+            feed_dict, _ = self.process_data_into_to_dict(coupled_batch, is_training=True)
             self.sess.run(self.train_op, feed_dict=feed_dict)
-            
-        mean_loss, mean_acc, auc, preds_list = self.evaluate(images, labels, ds='Train')
-        return mean_loss, mean_acc, auc, preds_list
 
-    def evaluate(self, images, labels, ds='Val.'):
-        coupled_batches = self.batches(images, labels)
-        loss_list, acc_list, preds_list = [], [], []
+        metrics = self.evaluate(train_list, ds='Train')
+        utils.write_number_list(metrics[-1], join(metrics_dir, 'tr_true'), verbose=self.args.verbose)
+        return metrics
+
+    def evaluate(self, coupled_list, ds='Val.'):
+        coupled_batches = utils.batcher(coupled_list, self.args.batch_size)
+
+        loss_list, acc_list, preds_list, labels_list = [], [], [], []
         
-        print('\nINFO: ++++++++++++++++++++ Validation ++++++++++++++++++++')
-        for image_batch, label_batch in tqdm(coupled_batches):
-            feed_dict = self.coupled_data_to_dict(image_batch, label_batch, is_training=False)
+        print('\nINFO: ++++++++++++++++++++ {} Evaluation ++++++++++++++++++++'.format(ds))
+        for coupled_batch in tqdm(coupled_batches):
+            feed_dict, labels = self.process_data_into_to_dict(coupled_batch)
             acc, loss, preds = self.sess.run([self.accuracy, self.loss, self.get_preds], feed_dict=feed_dict)
             loss_list.append(loss)
             acc_list.append(acc)
             preds_list.extend(preds)
+            labels_list.extend(labels)
 
         if self.args.verbose:
-            print('\nDEBUG: {}. Preds/Labels: {}'.format(ds, zip(preds_list, labels)))
-            print('\nDEBUG: {} Batch accuracy/loss: {}'.format(ds, zip(acc_list, loss_list)))
+            print('\nDEBUG: {}. Preds/Labels: {}'.format(ds, list(zip(preds_list, labels_list))))
+            print('\nDEBUG: {} Batch accuracy/loss: {}'.format(ds, list(zip(acc_list, loss_list))))
 
         mean_acc = np.mean(acc_list)
         mean_loss = np.mean(loss_list)
-        auc_score = roc_auc_score(labels, preds_list)
+        auc_score = roc_auc_score(labels_list, preds_list)
         print('\n' + '=' * 34)
         print("||  INFO: {} Accuracy: {:.4f} ||".format(ds, mean_acc))
         print("||  INFO: {} Loss:     {:.4f} ||".format(ds, mean_loss))
         print("||  INFO: {} AUC:      {:.4f} ||".format(ds, auc_score))
         print('=' * 34)
-        return mean_loss, mean_acc, auc_score, preds_list
+        return mean_loss, mean_acc, auc_score, preds_list, labels_list
 
     def predict(self, inference_data):
         errors_map = defaultdict(int)
@@ -151,28 +146,40 @@ class I3dForCTVolumes:
                 raise e
 
             print('\nINFO: Predicting...')
-            cropped = self.crop_image(preprocessed)
-            singleton_batch = np.expand_dims(cropped, axis=0)
-            feed_dict = self.coupled_data_to_dict(singleton_batch)
+            singleton_batch = [[np.expand_dims(preprocessed, axis=0), None]]
+            feed_dict, _ = self.process_data_into_to_dict(singleton_batch, is_paths=False)
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
             print('\nINFO: Probability of cancer within 1 year: {}\n\n'.format(preds[0][0]))
 
-            preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
-            print('\nINFO: 2 Probability of cancer within 1 year: {}\n\n'.format(preds[0][0]))
+    def process_data_into_to_dict(self, coupled_batch, is_paths=True, is_training=False):
+        images = []
+        labels = []
+        for image, label in coupled_batch:
+            try:
+                if is_paths:
+                    image = self.load_np_image(image)
 
-    def coupled_data_to_dict(self, image_batch, labels=None, is_training=False):
-        # Perform online windowing of image, to save storage space of preprocessed images
+                # Crop image to shape [self.args.num_slices, 224, 224]
+                crop_start = image.shape[0] // 2 - self.args.num_slices // 2
+                image = image[crop_start: crop_start + self.args.num_slices]
+                images.append(image)
+
+                if label is not None:
+                    labels.append(label)
+            except:
+                print('\nERROR! Could not load:', image)
+
+        # Perform windowing online image, to save storage space of preprocessed images
+        image_batch = np.array(images)
         image_batch = utils.apply_window(image_batch)
-        if labels is None:
-            labels = np.zeros_like(self.labels_placeholder)
-        feed_dict = {self.images_placeholder: image_batch, self.labels_placeholder: labels, self.is_training_placeholder: is_training}
 
-        return feed_dict
+        if labels:
+            labels_np = np.array(labels).astype(np.int64)
+        else:
+            labels_np = np.zeros_like(self.labels_placeholder)
 
-    def crop_image(self, scan_arr):
-        crop_start = scan_arr.shape[0] // 2 - self.args.num_slices // 2
-        image = scan_arr[crop_start: crop_start + self.args.num_slices]
-        return image
+        feed_dict = {self.images_placeholder: image_batch, self.labels_placeholder: labels_np, self.is_training_placeholder: is_training}
+        return feed_dict, labels
 
     def load_np_image(self, img_file):
         if img_file.endswith('.npz'):
@@ -180,24 +187,6 @@ class I3dForCTVolumes:
         else:
             scan_arr = np.load(join(self.args.data_dir, img_file)).astype(np.float32)
         return scan_arr
-
-    def process_coupled_data(self, coupled_data, progress=False):
-        images = []
-        labels = []
-        if progress:
-            coupled_data = tqdm(coupled_data)
-        for img_file, label in coupled_data:
-            try:
-                scan_arr = self.load_np_image(img_file)
-                image = self.crop_image(scan_arr)
-                images.append(image)
-                labels.append(label)
-            except:
-                print('ERROR !!! Could not load:', img_file)
-                
-        np_arr_images = np.array(images)
-        np_arr_labels = np.array(labels).astype(np.int64)
-        return np_arr_images, np_arr_labels
 
 def create_output_dirs(args):
     # Create model dir and log dir if they doesn't exist
@@ -237,18 +226,15 @@ def main(args):
         model.predict(args.inference)
     else:
         print('\nINFO: Begin Training')
-        
         save_dir, metrics_dir, plots_dir = create_output_dirs(args)
 
         prefix = join(args.data_dir, 'lists', args.debug)
         train_list = utils.load_data_list(prefix + args.train)
         val_list = utils.load_data_list(prefix + args.test)
-    
-        print('\nINFO: Loading validation set...')
-        val_images, val_labels = model.process_coupled_data(val_list, progress=True)
+        val_labels = utils.get_list_labels(val_list)
         utils.write_number_list(val_labels, join(metrics_dir, 'val_true'), verbose=args.verbose)
+
         metrics = defaultdict(list)
-        
         for epoch in range(1, args.epochs + 1):
             print('\nINFO: +++++++++++++++++++++ EPOCH {} +++++++++++++++++++++'.format(epoch))
             start_time = time()
@@ -264,11 +250,11 @@ def main(args):
 
             # Run validation at end of each epoch
             print("\nINFO: Begin Validation")
-            val_metrics = model.evaluate(val_images, val_labels)
+            val_metrics = model.evaluate(val_list)
 
             print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
 
-            print('\nINFO: Writing metrics and their plots...')
+            print('\nINFO: Writing metrics plotting them...')
             utils.write_metrics(metrics, tr_epoch_metrics, val_metrics, metrics_dir, epoch, verbose=args.verbose)
             utils.plot_metrics(epoch, metrics_dir, plots_dir)
 
