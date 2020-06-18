@@ -142,11 +142,12 @@ class I3dForCTVolumes:
                         sample_img=False, verbose=self.args.verbose)
                 else:
                     preprocessed = self.load_np_image(image_path)
+                    preprocessed = np.expand_dims(preprocessed, axis=0)
             except ValueError as e:
                 raise e
 
             print('\nINFO: Predicting...')
-            singleton_batch = [[np.expand_dims(preprocessed, axis=0), None]]
+            singleton_batch = [[preprocessed, None]]
             feed_dict, _ = self.process_data_into_to_dict(singleton_batch, is_paths=False)
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
             print('\nINFO: Probability of cancer within 1 year: {}\n\n'.format(preds[0][0]))
@@ -292,7 +293,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--ckpt', default='best_model_220', type=str, help='path to previously saved model to load')
 
-    parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data_preprocessed', type=str, help='path to scan for cancer prediction')
+    parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data', type=str, help='path to scan for cancer prediction')
 
     parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
 
