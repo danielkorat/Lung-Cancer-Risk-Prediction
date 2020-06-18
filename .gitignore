@@ -140,7 +140,7 @@ dmypy.json
 *.DS_Store
 *.npz
 
-*.log
+# *.log
 
 data/datasets
 data/best_model
@@ -150,4 +150,4 @@ models/
 trained_model/
 out*/
 *.xml
-*_in_bg.py
+# *_in_bg.py
