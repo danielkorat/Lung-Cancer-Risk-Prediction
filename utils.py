@@ -67,11 +67,11 @@ def calc_plot_epoch_auc_roc(y, y_probs, title, plots_dir, verbose=False):
 def load_and_plot_epoch_auc(metrics_dir, epoch, val_true, tr_true, plots_dir):
     val_preds_epoch = load_npz_as_list(metrics_dir, 'val_preds/epoch_' + str(epoch) + '.npz')
     calc_plot_epoch_auc_roc(val_true, val_preds_epoch, 
-                            'ROC for Epoch {}'.format(epoch), plots_dir)
+                            'Val. ROC for Epoch {}'.format(epoch), plots_dir)
 
     tr_preds_epoch = load_npz_as_list(metrics_dir, 'tr_preds/epoch_' + str(epoch) + '.npz')
     calc_plot_epoch_auc_roc(tr_true, tr_preds_epoch, 
-                            'ROC for Epoch {}'.format(epoch), plots_dir)
+                            'Train ROC for Epoch {}'.format(epoch), plots_dir)
 
 def plot_metrics(epoch, metrics_dir, plots_dir):
     val_loss = load_npz_as_list(metrics_dir, 'val_loss.npz')

@@ -134,7 +134,7 @@ class I3dForCTVolumes:
         errors_map = defaultdict(int)
         img_iterator = walk_np_files(inference_data) if self.args.is_preprocessed else walk_dicom_dirs(inference_data)
         
-        for image_path in tqdm(img_iterator, file=os.sys.stderr):
+        for image_path in tqdm(img_iterator):
             try:
                 if not self.args.is_preprocessed:
                     print('\nINFO: Preprocessing image...')
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     BATCH = 2
     DEBUG = ''
     # DEBUG = '1_'
-    GPU = 1
+    GPU = 0
     ##################################################
 
     parser.add_argument('--epochs', default=EPOCHS, type=int,  help='the number of epochs')
@@ -290,13 +290,13 @@ if __name__ == "__main__":
 
     parser.add_argument('--i3d_ckpt', default='checkpoints/inflated', type=str, help='path to previously saved model to load')
 
-    parser.add_argument('--ckpt', default='best_model', type=str, help='path to previously saved model to load')
+    parser.add_argument('--ckpt', default='best_model_220', type=str, help='path to previously saved model to load')
 
-    parser.add_argument('--inference', default=None, type=str, help='path to scan for cancer prediction')
+    parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data_preprocessed', type=str, help='path to scan for cancer prediction')
 
     parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
 
-    parser.add_argument('--is_preprocessed', default=True, type=bool, help='whether data for inference is preprocessed np files or raw DICOM dirs')
+    parser.add_argument('--is_preprocessed', default=False, type=bool, help='whether data for inference is preprocessed np files or raw DICOM dirs')
 
     parser.add_argument('--num_slices', default=220, type=int, help='number of slices (z dimension) used by the model')
 
