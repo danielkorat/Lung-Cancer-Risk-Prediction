@@ -177,7 +177,7 @@ class I3dForCTVolumes:
         if labels:
             labels_np = np.array(labels).astype(np.int64)
         else:
-            labels_np = np.zeros_like(self.labels_placeholder)
+            labels_np = None
 
         feed_dict = {self.images_placeholder: image_batch, self.labels_placeholder: labels_np, self.is_training_placeholder: is_training}
         return feed_dict, labels
