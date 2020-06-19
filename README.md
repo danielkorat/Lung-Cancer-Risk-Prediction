@@ -35,7 +35,7 @@ The inputs are preprocessed CT volumes, as produced by `preprocess.py`.
 For usage example, refer to the arguments' description and default values in the bottom of `main.py`.
 
 For an example on how to run out-of-the box inference:  
-[[Notebook](https://github.com/danielkorat/Lung-Cancer-Risk-Prediction/master/notebooks/inference.ipynb)]
+[[Notebook](https://github.com/danielkorat/Lung-Cancer-Risk-Prediction/blob/master/notebooks/inference.ipynb)]
 [[Colab](https://colab.research.google.com/drive/1nWFFiFI43W7aClax0fjR3OEepTAW5Opw?usp=sharing)]
 
 
