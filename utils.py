@@ -32,9 +32,9 @@ def download_fine_tuned_model(data_dir):
         print('\nINFO: Cancer fine-tuned model already downloaded.')
     else:
         print('\nINFO: Downloading cancer fine-tuned model...')
-        url = 'https://drive.google.com/uc?id=1rkHWXLBjaBx0bGoJ_GVcbDzrg4G-AubT'
+        url = 'https://drive.google.com/uc?id=1Zc8KdEz9JUfkT1ZsG9ELYReUPbVapbQC'
         zip_output = join(data_dir, 'checkpoints', 'cancer_fine_tuned.zip')
-        md5 = '9b6cd7a49bf56b25df56db9fc112eedb'
+        md5 = 'cd5271617e090859f73a727da81cc2e3'
         gdown.cached_download(url, zip_output, md5=md5, postprocess=gdown.extractall, quiet=True)
         os.remove(zip_output)
 
