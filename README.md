@@ -34,6 +34,11 @@ The `main.py` module contains training (fine-tuning) and inference procedures.
 The inputs are preprocessed CT volumes, as produced by `preprocess.py`.
 For usage example, refer to the arguments' description and default values in the bottom of `main.py`.
 
+For an example on how to run out-of-the box inference:
+[[Notebook](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/notebooks/inference.ipynb)]
+[[Colab](https://colab.research.google.com/drive/1nWFFiFI43W7aClax0fjR3OEepTAW5Opw?usp=sharing)]
+
+
 ### Data Preprocessing
 
 The `main.py` module operates only on preprocessed volumes, produced by `preprocess.py`.
