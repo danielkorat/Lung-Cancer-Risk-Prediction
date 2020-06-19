@@ -1,4 +1,4 @@
-# Lung Cancer Risk Prediction With 3D Neural Network on CT
+# 3D Neural Network for Lung Cancer Risk Prediction on CT Volumes
 
 ## Overview
 
