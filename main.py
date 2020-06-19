@@ -146,12 +146,10 @@ class I3dForCTVolumes:
             except ValueError as e:
                 raise e
 
-            print('\nINFO: Predicting cancer for volume no. {}...'.format(i))
+            print('\nINFO: Predicting cancer for volume no. {}...'.format(i + 1))
             singleton_batch = [[preprocessed, None]]
             feed_dict, _ = self.process_data_into_to_dict(singleton_batch, is_paths=False)
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
-            print('\nINFO: Probability of cancer within 1 year: {}\n\n'.format(preds))
-            print('\nINFO: Probability of cancer within 1 year: {}\n\n'.format(preds[0][0]))
             print('\nINFO: Probability of cancer within 1 year: {:.5f}\n\n'.format(preds[0][0]))
 
     def process_data_into_to_dict(self, coupled_batch, is_paths=True, is_training=False):
