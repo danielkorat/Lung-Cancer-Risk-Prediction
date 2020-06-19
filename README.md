@@ -64,8 +64,8 @@ It was then fine-tuned on the preprocessed CT volumes to predict cancer within 1
 
 Due to limited storage and compute time, we trained our model on a small subset of NLST containing 1,045 volumes (34% positive).
 Nevertheless, we still achieved a high AUC score of 0.876 on a validation set of 448 volumes.
-This is rouhly comparable to the original paper's result of 0.89 AUC for the full-volume model (see the paper's supplemtary material), trained on 47,974 volumes (1.34% positive).
-We set the dropout keep_prob to 0.7, and trained in minibatches of size of 2 (due to limited GPU memory).
+This is comparable to the original paper's result of 0.89 AUC for the full-volume model (see the paper's supplemtary material), trained on 47,974 volumes (1.34% positive).  
+For trainng, we set the dropout keep_prob to 0.7, and trained in minibatches of size of 2 (due to limited GPU memory).
 We used `tf.train.AdamOptimizer` with a small learning rate of 5e-5 (without decay), due to the small batch size.
 We stopped the training before overfitting started around epoch 32.
 The focal loss function from the paper is provided in the code, but we did not experience improved results when using it, compared to cross-entropy loss which was used instead. This is most likely becuase our positive examples were not as sparse as in the paper.
