@@ -215,7 +215,7 @@ def main(args):
     model = I3dForCTVolumes(args)
 
     # Load pre-trained weights
-    pre_trained_ckpt = load_pretrained_ckpt(args.ckpt. args.data_dir)
+    pre_trained_ckpt = utils.load_pretrained_ckpt(args.ckpt. args.data_dir)
     model.pretrained_saver.restore(model.sess, pre_trained_ckpt)
 
     if args.inference:
