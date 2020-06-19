@@ -35,7 +35,7 @@ def download_fine_tuned_model(data_dir):
         url = 'https://drive.google.com/uc?id=1rkHWXLBjaBx0bGoJ_GVcbDzrg4G-AubT'
         zip_output = join(data_dir, 'checkpoints', 'cancer_fine_tuned.zip')
         md5 = '9b6cd7a49bf56b25df56db9fc112eedb'
-        gdown.cached_download(url, zip_output, md5=md5, postprocess=gdown.extractall)
+        gdown.cached_download(url, zip_output, md5=md5, postprocess=gdown.extractall, quiet=True)
         os.remove(zip_output)
 
 def pretty_print_floats(lst):
