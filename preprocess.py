@@ -3,12 +3,12 @@ from tqdm import tqdm
 import numpy as np
 import pydicom as dicom
 import os
-import scipy.ndvolume
+from scipy import ndvolume
 import matplotlib.pyplot as plt
 from utils import apply_window
 from pathlib import Path
 
-from skvolume import measure, morphology
+from skvolume import measure
 from collections import defaultdict
 from sys import argv
 from random import shuffle
@@ -87,7 +87,7 @@ def resample(scan_hu, scan_file, scan, new_spacing, verbose=False):
     real_resize_factor = new_shape / scan_hu.shape
     new_spacing = spacing / real_resize_factor
     
-    scan_hu = scipy.ndvolume.interpolation.zoom(scan_hu, real_resize_factor, mode='nearest')
+    scan_hu = ndvolume.interpolation.zoom(scan_hu, real_resize_factor, mode='nearest')
     return scan_hu, new_spacing 
 
 def largest_label_volume(im, bg=-1):
