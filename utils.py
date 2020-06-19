@@ -96,20 +96,20 @@ def write_metrics(metrics, tr_metrics, val_metrics, metrics_dir, epoch, verbose=
             write_number_list(metrics[name], join(metrics_dir, name))
         write_number_list(preds, join(metrics_dir, ds + '_preds', 'epoch_{}'.format(epoch)), verbose=verbose)
 
-def apply_window(image, axis=4):
+def apply_window(volume, axis=4):
     # Windowing
     # Our values currently range from -1024 to around 2000. 
     # Anything above 400 is not interesting to us, as these are simply bones with different radiodensity.  
     # A commonly used set of thresholds in Lungs LDCT to normalize between are -1000 and 400. 
     min_bound = -1000.0
     max_bound = 400.0
-    image = (image - min_bound) / (max_bound - min_bound)
-    image[image>1] = 1.
-    image[image<0] = 0.
+    volume = (volume - min_bound) / (max_bound - min_bound)
+    volume[volume>1] = 1.
+    volume[volume<0] = 0.
 
     # Normalize rgb values to [-1, 1]
-    image = (image * 2) - 1
-    res =  np.stack((image, image, image), axis=axis)
+    volume = (volume * 2) - 1
+    res =  np.stack((volume, volume, volume), axis=axis)
     return res.astype(np.float32)
 
 def write_number_list(lst, f_name, verbose=False):
@@ -127,8 +127,8 @@ def load_data_list(path):
     coupled_data = []
     with open(path) as file_list_fp:
         for line in file_list_fp:
-            image_path, label = line.split()
-            coupled_data.append((image_path, int(label)))
+            volume_path, label = line.split()
+            coupled_data.append((volume_path, int(label)))
     return coupled_data
 
 def get_list_labels(coupled_data):
@@ -146,20 +146,20 @@ def placeholder_inputs(num_slices, crop_size, rgb_channels=3):
     channels: The number of RGB input channels per volume.
 
     Returns:
-    images_placeholder: Images placeholder.
+    volumes_placeholder: volumes placeholder.
     labels_placeholder: Labels placeholder.
     """
     # Note that the shapes of the placeholders match the shapes of the full
-    # image and label tensors, except the first dimension is now batch_size
+    # volume and label tensors, except the first dimension is now batch_size
     # rather than the full size of the train or test data sets.
-    images_placeholder = tf.placeholder(tf.float32, shape=(None,
+    volumes_placeholder = tf.placeholder(tf.float32, shape=(None,
                                                            num_slices,
                                                            crop_size,
                                                            crop_size,
                                                            rgb_channels))
     labels_placeholder = tf.placeholder(tf.int64, shape=(None))
     is_training = tf.placeholder(tf.bool)
-    return images_placeholder, labels_placeholder, is_training
+    return volumes_placeholder, labels_placeholder, is_training
 
 def focal_loss(logits, labels, alpha=0.75, gamma=2):
     """Compute focal loss for binary classification.

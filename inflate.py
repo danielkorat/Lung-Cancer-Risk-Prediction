@@ -23,9 +23,9 @@ def assign(global_vars, model_path):
             else:
                 var_3d.assign(tf.convert_to_tensor(var_value.reshape(var_3d.get_shape())))
 
-def inflate_inception_v1_checkpoint_to_i3d(ckpt_2d, ckpt_3d, num_slices=145, image_size=224, num_classes=2):
+def inflate_inception_v1_checkpoint_to_i3d(ckpt_2d, ckpt_3d, num_slices=145, volume_size=224, num_classes=2):
     rgb_input = tf.placeholder(tf.float32,
-        shape=(1, num_slices, image_size, image_size, 3))
+        shape=(1, num_slices, volume_size, volume_size, 3))
     with tf.variable_scope('RGB'):
         i3d.InceptionI3d(num_classes, spatial_squeeze=True, final_endpoint='Logits')\
                         (rgb_input, is_training=False)

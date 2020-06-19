@@ -40,7 +40,7 @@ class I3dForCTVolumes:
                     )
 
             # Placeholders
-            self.images_placeholder, self.labels_placeholder, self.is_training_placeholder = utils.placeholder_inputs(
+            self.volumes_placeholder, self.labels_placeholder, self.is_training_placeholder = utils.placeholder_inputs(
                     num_slices=self.args.num_slices,
                     crop_size=self.slice_size,
                     rgb_channels=3
@@ -54,7 +54,7 @@ class I3dForCTVolumes:
             with tf.device('/device:' + self.args.device + ':0'):
                 with tf.compat.v1.variable_scope('RGB'):
                     _, end_points = InceptionI3d(num_classes=2, final_endpoint='Predictions')\
-                        (self.images_placeholder, self.is_training_placeholder, dropout_keep_prob=args.keep_prob)
+                        (self.volumes_placeholder, self.is_training_placeholder, dropout_keep_prob=args.keep_prob)
                 self.logits = end_points['Logits']
                 self.preds = end_points['Predictions']
 
@@ -132,61 +132,61 @@ class I3dForCTVolumes:
 
     def predict(self, inference_data):
         errors_map = defaultdict(int)
-        img_iterator = walk_np_files(inference_data) if self.args.is_preprocessed else walk_dicom_dirs(inference_data)
+        volume_iterator = walk_np_files(inference_data) if self.args.is_preprocessed else walk_dicom_dirs(inference_data)
         
-        for image_path in tqdm(img_iterator):
+        for i, volume_path in enumerate(volume_iterator):
             try:
                 if not self.args.is_preprocessed:
-                    print('\nINFO: Preprocessing image...')
-                    preprocessed, _ = preprocess(image_path, errors_map, self.args.num_slices, self.slice_size, \
-                        sample_img=False, verbose=self.args.verbose)
+                    print('\nINFO: Preprocessing volume...')
+                    preprocessed, _ = preprocess(volume_path, errors_map, self.args.num_slices, self.slice_size, \
+                        sample_volume=False, verbose=self.args.verbose)
                 else:
-                    preprocessed = self.load_np_image(image_path)
+                    preprocessed = self.load_np_volume(volume_path)
                     preprocessed = np.expand_dims(preprocessed, axis=0)
             except ValueError as e:
                 raise e
 
-            print('\nINFO: Predicting...')
+            print('\nINFO: Predicting cancer for volume {}...', i)
             singleton_batch = [[preprocessed, None]]
             feed_dict, _ = self.process_data_into_to_dict(singleton_batch, is_paths=False)
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
             print('\nINFO: Probability of cancer within 1 year: {}\n\n'.format(preds[0][0]))
 
     def process_data_into_to_dict(self, coupled_batch, is_paths=True, is_training=False):
-        images = []
+        volumes = []
         labels = []
-        for image, label in coupled_batch:
+        for volume, label in coupled_batch:
             try:
                 if is_paths:
-                    image = self.load_np_image(image)
+                    volume = self.load_np_volume(volume)
 
-                # Crop image to shape [self.args.num_slices, 224, 224]
-                crop_start = image.shape[0] // 2 - self.args.num_slices // 2
-                image = image[crop_start: crop_start + self.args.num_slices]
-                images.append(image)
+                # Crop volume to shape [self.args.num_slices, 224, 224]
+                crop_start = volume.shape[0] // 2 - self.args.num_slices // 2
+                volume = volume[crop_start: crop_start + self.args.num_slices]
+                volumes.append(volume)
 
                 if label is not None:
                     labels.append(label)
             except:
-                print('\nERROR! Could not load:', image)
+                print('\nERROR! Could not load:', volume)
 
-        # Perform windowing online image, to save storage space of preprocessed images
-        image_batch = np.array(images)
-        image_batch = utils.apply_window(image_batch)
+        # Perform windowing online volume, to save storage space of preprocessed volumes
+        volume_batch = np.array(volumes)
+        volume_batch = utils.apply_window(volume_batch)
 
         if labels:
             labels_np = np.array(labels).astype(np.int64)
         else:
-            labels_np = np.zeros(image_batch.shape[0], dtype=np.int64)
+            labels_np = np.zeros(volume_batch.shape[0], dtype=np.int64)
 
-        feed_dict = {self.images_placeholder: image_batch, self.labels_placeholder: labels_np, self.is_training_placeholder: is_training}
+        feed_dict = {self.volumes_placeholder: volume_batch, self.labels_placeholder: labels_np, self.is_training_placeholder: is_training}
         return feed_dict, labels
 
-    def load_np_image(self, img_file):
-        if img_file.endswith('.npz'):
-            scan_arr = np.load(join(self.args.data_dir, img_file))['data']
+    def load_np_volume(self, volume_file):
+        if volume_file.endswith('.npz'):
+            scan_arr = np.load(join(self.args.data_dir, volume_file))['data']
         else:
-            scan_arr = np.load(join(self.args.data_dir, img_file)).astype(np.float32)
+            scan_arr = np.load(join(self.args.data_dir, volume_file)).astype(np.float32)
         return scan_arr
 
 def create_output_dirs(args):
@@ -214,9 +214,6 @@ def main(args):
     # Init model wrapper
     model = I3dForCTVolumes(args)
 
-    print('\nINFO: Hyperparams:')
-    print('\n'.join([str(item) for item in vars(args).items()]))
-
     # Load pretrained weights
     ckpt = join(args.data_dir, args.ckpt if args.inference else args.i3d_ckpt, 'model.ckpt')
     print('\nINFO: Loading pre-trained model:', ckpt)
@@ -227,6 +224,10 @@ def main(args):
         model.predict(args.inference)
     else:
         print('\nINFO: Begin Training')
+
+        print('\nINFO: Hyperparams:')
+        print('\n'.join([str(item) for item in vars(args).items()]))
+
         save_dir, metrics_dir, plots_dir = create_output_dirs(args)
 
         prefix = join(args.data_dir, 'lists', args.debug)
@@ -295,7 +296,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data', type=str, help='path to scan for cancer prediction')
 
-    parser.add_argument('--verbose', default=True, type=bool, help='whether to print detailed logs')
+    parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
 
     parser.add_argument('--is_preprocessed', default=False, type=bool, help='whether data for inference is preprocessed np files or raw DICOM dirs')
 

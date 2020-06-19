@@ -3,12 +3,12 @@ from tqdm import tqdm
 import numpy as np
 import pydicom as dicom
 import os
-import scipy.ndimage
+import scipy.ndvolume
 import matplotlib.pyplot as plt
 from utils import apply_window
 from pathlib import Path
 
-from skimage import measure, morphology
+from skvolume import measure, morphology
 from collections import defaultdict
 from sys import argv
 from random import shuffle
@@ -24,11 +24,11 @@ from random import shuffle
 # Load a volume from the given folder path
 def load_scan(path):
     slices = [dicom.read_file(path + '/' + s) for s in os.listdir(path) if os.path.splitext(s)[0].isdigit() or 'dcm' in os.path.splitext(s)[1]]
-    slices.sort(key = lambda x: float(x.ImagePositionPatient[2]))
+    slices.sort(key = lambda x: float(x.volumePositionPatient[2]))
 
     if not slices[0].SliceThickness:
         try:
-            slice_thickness = np.abs(slices[0].ImagePositionPatient[2] - slices[1].ImagePositionPatient[2])
+            slice_thickness = np.abs(slices[0].volumePositionPatient[2] - slices[1].volumePositionPatient[2])
         except:
             slice_thickness = np.abs(slices[0].SliceLocation - slices[1].SliceLocation)
             
@@ -40,19 +40,19 @@ def load_scan(path):
 # The unit of measurement in CT scans is the **Hounsfield Unit (HU)**, which is a measure of radiodensity. 
 # CT scanners are carefully calibrated to accurately measure this.  From Wikipedia:
 # By default however, the returned values are not in this unit. Let's fix this.
-# Some scanners have cylindrical scanning bounds, but the output image is square. 
+# Some scanners have cylindrical scanning bounds, but the output volume is square. 
 # The pixels that fall outside of these bounds get the fixed value -2000. The first step is setting these values to 0, which currently corresponds to air. 
 # Next, let's go back to HU units, by multiplying with the rescale slope and adding the intercept (which are conveniently stored in the metadata of the scans!).
 
 def get_pixels_hu(slices):
-    image = np.stack([s.pixel_array for s in slices])
+    volume = np.stack([s.pixel_array for s in slices])
     # Convert to int16 (from sometimes int16), 
     # should be possible as values should always be low enough (<32k)
-    image = image.astype(np.int16)
+    volume = volume.astype(np.int16)
 
     # Set outside-of-scan pixels to 0
     # The intercept is usually -1024, so air is approximately 0
-    image[image == -2000] = 0
+    volume[volume == -2000] = 0
 
     # Convert to Hounsfield units (HU)
     for slice_number in range(len(slices)):
@@ -61,12 +61,12 @@ def get_pixels_hu(slices):
         slope = slices[slice_number].RescaleSlope
         
         if slope != 1:
-            image[slice_number] = slope * image[slice_number].astype(np.float64)
-            image[slice_number] = image[slice_number].astype(np.int16)
+            volume[slice_number] = slope * volume[slice_number].astype(np.float64)
+            volume[slice_number] = volume[slice_number].astype(np.int16)
             
-        image[slice_number] += np.int16(intercept)
+        volume[slice_number] += np.int16(intercept)
 
-    return np.array(image, dtype=np.int16)
+    return np.array(volume, dtype=np.int16)
 
 # # Resampling
 # A scan may have a pixel spacing of `[2.5, 0.5, 0.5]`, which means that the distance between slices is `2.5` millimeters. 
@@ -87,7 +87,7 @@ def resample(scan_hu, scan_file, scan, new_spacing, verbose=False):
     real_resize_factor = new_shape / scan_hu.shape
     new_spacing = spacing / real_resize_factor
     
-    scan_hu = scipy.ndimage.interpolation.zoom(scan_hu, real_resize_factor, mode='nearest')
+    scan_hu = scipy.ndvolume.interpolation.zoom(scan_hu, real_resize_factor, mode='nearest')
     return scan_hu, new_spacing 
 
 def largest_label_volume(im, bg=-1):
@@ -105,17 +105,17 @@ def largest_label_volume(im, bg=-1):
 # we will use only connected component analysis.
 # 
 # The steps:  
-# * Threshold the image (-320 HU is a good threshold, but it doesn't matter much for this approach)
-# * Do connected components, determine label of air around person, fill this with 1s in the binary image
+# * Threshold the volume (-320 HU is a good threshold, but it doesn't matter much for this approach)
+# * Do connected components, determine label of air around person, fill this with 1s in the binary volume
 # * Optionally: For every axial slice in the scan, determine the largest solid connected component 
 # (the body+air around the person), and set others to 0. This fills the structures in the lungs in the mask.
 # * Keep only the largest air pocket (the human body has other pockets of air here and there).
-def segment_lung_mask(image, fill_lung_structures=True):
+def segment_lung_mask(volume, fill_lung_structures=True):
     
     # not actually binary, but 1 and 2. 
     # 0 is treated as background, which we do not want
-    binary_image = np.array(image > -320, dtype=np.int8)+1
-    labels = measure.label(binary_image)
+    binary_volume = np.array(volume > -320, dtype=np.int8)+1
+    labels = measure.label(binary_volume)
     
     # Pick the pixel in the very corner to determine which label is air.
     #   Improvement: Pick multiple background labels from around the patient
@@ -124,39 +124,39 @@ def segment_lung_mask(image, fill_lung_structures=True):
     background_label = labels[0,0,0]
     
     #Fill the air around the person
-    binary_image[background_label == labels] = 2
+    binary_volume[background_label == labels] = 2
     
     # Method of filling the lung structures (that is superior to something like 
     # morphological closing)
     if fill_lung_structures:
         # For every slice we determine the largest solid structure
-        for i, axial_slice in enumerate(binary_image):
+        for i, axial_slice in enumerate(binary_volume):
             axial_slice = axial_slice - 1
             labeling = measure.label(axial_slice)
             l_max = largest_label_volume(labeling, bg=0)
             if l_max is not None: # This slice contains some lung
-                binary_image[i][labeling != l_max] = 1
+                binary_volume[i][labeling != l_max] = 1
     
-    binary_image -= 1 # Make the image actual binary
-    binary_image = 1-binary_image # Invert it, lungs are now 1
+    binary_volume -= 1 # Make the volume actual binary
+    binary_volume = 1-binary_volume # Invert it, lungs are now 1
     
     # Remove other air pockets insided body
-    labels = measure.label(binary_image, background=0)
+    labels = measure.label(binary_volume, background=0)
     l_max = largest_label_volume(labels, bg=0)
     if l_max is not None: # There are air pockets
-        binary_image[labels != l_max] = 0
-    return binary_image
+        binary_volume[labels != l_max] = 0
+    return binary_volume
 
-def bbox2_3D(img):
-    r = np.any(img, axis=(1, 2))
-    c = np.any(img, axis=(0, 2))
-    z = np.any(img, axis=(0, 1))
+def bbox2_3D(volume):
+    r = np.any(volume, axis=(1, 2))
+    c = np.any(volume, axis=(0, 2))
+    z = np.any(volume, axis=(0, 1))
     rmin, rmax = np.where(r)[0][[0, -1]]
     cmin, cmax = np.where(c)[0][[0, -1]]
     zmin, zmax = np.where(z)[0][[0, -1]]
     return rmin, rmax, cmin, cmax, zmin, zmax
 
-def preprocess(scan, errors_map, num_slices=224, crop_size=224, voxel_size=1.5, windowing=False, sample_img=True, verbose=True):
+def preprocess(scan, errors_map, num_slices=224, crop_size=224, voxel_size=1.5, windowing=False, sample_volume=True, verbose=True):
     orig_scan = load_scan(scan)
     num_orig_slices = len(orig_scan)
     if num_orig_slices < 50:
@@ -192,21 +192,21 @@ def preprocess(scan, errors_map, num_slices=224, crop_size=224, voxel_size=1.5, 
     lung_center = np.array([z_min + z_max, x_min + x_max, y_min + y_max]) // 2
     context = np.array([num_slices, crop_size, crop_size])
 
-    img_starts = np.array([max(0, lung_center[i] - context[i] // 2) for i in range(3)])
-    img_ends = np.array([min(resampled_scan.shape[i], lung_center[i] + context[i] // 2) for i in range(3)])
-    img_size = img_ends - img_starts
+    volume_starts = np.array([max(0, lung_center[i] - context[i] // 2) for i in range(3)])
+    volume_ends = np.array([min(resampled_scan.shape[i], lung_center[i] + context[i] // 2) for i in range(3)])
+    volume_size = volume_ends - volume_starts
         
-    starts = context // 2 - img_size // 2
-    ends = starts + img_size
+    starts = context // 2 - volume_size // 2
+    ends = starts + volume_size
 
     lungs_padded = np.zeros((num_slices, crop_size, crop_size))
     lungs_padded[starts[0]: ends[0], starts[1]: ends[1], starts[2]: ends[2]] = \
-            resampled_scan[img_starts[0]: img_ends[0], img_starts[1]: img_ends[1], img_starts[2]: img_ends[2]]
+            resampled_scan[volume_starts[0]: volume_ends[0], volume_starts[1]: volume_ends[1], volume_starts[2]: volume_ends[2]]
 
     if verbose:
         print("Final shape", lungs_padded.shape)
         
-    if sample_img:
+    if sample_volume:
         # Generate an RGB slice for display
         lungs_rgb = np.stack((lungs_padded, lungs_padded, lungs_padded), axis=3)
         lungs_sample_slice = lungs_rgb[lungs_rgb.shape[0] // 2]
@@ -272,7 +272,7 @@ def preprocess_all(input_dir, overwrite=False, num_slices=224, crop_size=224, vo
     print('Scans with insufficient slices: {}'.format(errors_map['insufficient_slices']))
     print('Scans with bad segmentation: {}'.format(errors_map['bad_seg']))
     print('Scans with small resampled z dimension: {}'.format(errors_map['small_z']))
-    print((time.time() - start) / scans_num, 'sec/image')
+    print((time.time() - start) / scans_num, 'sec/volume')
 
 def create_train_test_lists(positives, negatives, lists_dir, print_dirs=False, split_ratio=0.7):
     positive_paths = []
