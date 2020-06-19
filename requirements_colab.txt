@@ -1,3 +1,0 @@
-pydicom
-scikit-plot
-dm-sonnet==1.34
