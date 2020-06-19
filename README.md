@@ -49,7 +49,7 @@ The preprocessing steps include methods from [this](https://www.kaggle.com/gzuid
 - Resampling to a 1.4mm voxel size (slow).
 - Coarse lung segmentation – used to compute lung center for alignment and reduction of problem space.
 
-To save storage space, following preprocessing steps are performed online (during training/inference):
+To save storage space, the following preprocessing steps are performed online (during training/inference):
 
 - Windowing – clip pixel values to focus on lung volume.
 - RGB normalization
