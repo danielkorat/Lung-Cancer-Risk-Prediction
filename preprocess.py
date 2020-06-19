@@ -3,12 +3,11 @@ from tqdm import tqdm
 import numpy as np
 import pydicom as dicom
 import os
-from scipy import ndvolume
+from scipy import ndimage
 import matplotlib.pyplot as plt
 from utils import apply_window
 from pathlib import Path
-
-from skvolume import measure
+from skimage import measure
 from collections import defaultdict
 from sys import argv
 from random import shuffle
@@ -24,11 +23,11 @@ from random import shuffle
 # Load a volume from the given folder path
 def load_scan(path):
     slices = [dicom.read_file(path + '/' + s) for s in os.listdir(path) if os.path.splitext(s)[0].isdigit() or 'dcm' in os.path.splitext(s)[1]]
-    slices.sort(key = lambda x: float(x.volumePositionPatient[2]))
+    slices.sort(key = lambda x: float(x.ImagePositionPatient[2]))
 
     if not slices[0].SliceThickness:
         try:
-            slice_thickness = np.abs(slices[0].volumePositionPatient[2] - slices[1].volumePositionPatient[2])
+            slice_thickness = np.abs(slices[0].ImagePositionPatient[2] - slices[1].ImagePositionPatient[2])
         except:
             slice_thickness = np.abs(slices[0].SliceLocation - slices[1].SliceLocation)
             
@@ -87,7 +86,7 @@ def resample(scan_hu, scan_file, scan, new_spacing, verbose=False):
     real_resize_factor = new_shape / scan_hu.shape
     new_spacing = spacing / real_resize_factor
     
-    scan_hu = ndvolume.interpolation.zoom(scan_hu, real_resize_factor, mode='nearest')
+    scan_hu = ndimage.interpolation.zoom(scan_hu, real_resize_factor, mode='nearest')
     return scan_hu, new_spacing 
 
 def largest_label_volume(im, bg=-1):

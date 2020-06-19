@@ -5,7 +5,7 @@ tqdm
 scipy
 pydicom
 scikit-learn
-scikit-volume
+scikit-image
 matplotlib
 scikit-plot
 seaborn
