@@ -58,7 +58,7 @@ To train this model we first initialized by bootstrapping the filters from the [
 It was then fine-tuned on the preprocessed CT volumes to predict cancer within 1 year (binary classification). Each of these volumes was a large region cropped around the center of the bounding box, as determined by lung segmentation in the preprocessing step.
 
 Due to limited storage and compute time, we trained our model on a small subset of NLST containing 1,045 volumes (34% positive).
-Nevertheless, we still achieved a high AUC score of 0.87 on a validation set of 448 volumes.
+Nevertheless, we still achieved a high AUC score of 0.876 on a validation set of 448 volumes.
 This is rouhly comparable to the original paper's result of 0.89 AUC for the full-volume model (see the paper's supplemtary material), trained on 47,974 volumes (1.34% positive).
 We set the dropout keep_prob to 0.7, and trained in minibatches of size of 2 (due to limited GPU memory).
 We used `tf.train.AdamOptimizer` with a small learning rate of 5e-5 (without decay), due to the small batch size.
