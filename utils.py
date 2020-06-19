@@ -6,7 +6,7 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 import math
 import numpy as np
-
+import gdown
 from sklearn.metrics import roc_auc_score, roc_curve
 import scikitplot as skplt
 import matplotlib.pyplot as plt
@@ -14,6 +14,26 @@ import seaborn as sns
 sns.set_style("darkgrid")
 from matplotlib.pyplot import figure
 from os.path import join
+
+def load_pretrained_ckpt(ckpt, data_dir):
+    if ckpt == 'cancer_fine_tuned':
+        download_fine_tuned_model(data_dir)
+
+    # Load a pre-defined ckpt or a ckpt from path
+    predefined = join(data_dir, 'checkpoints', ckpt)
+    ckpt_dir = predefined if os.path.exists(predefined) else ckpt
+
+    pre_trained_ckpt = join(ckpt_dir, 'model.ckpt')
+    print('\nINFO: Loading pre-trained model:', pre_trained_ckpt)
+    return pre_trained_ckpt
+
+def download_fine_tuned_model(data_dir):
+    # url = 'https://drive.google.com/uc?id=0B9P1L--7Wd2vNm9zMTJWOGxobkU'
+    url = 'https://drive.google.com/file/d/1tXrooanNzpai0bU4rKZcwL9fKs2xggoh'
+    output = join(data_dir, 'checkpoints', 'cancer_fine_tuned.zip')
+    md5 = '9b6cd7a49bf56b25df56db9fc112eedb'
+    gdown.cached_download(url, output, md5=md5, postprocess=gdown.extractall)
+
 
 def pretty_print_floats(lst):
     return ',  '.join(['{:.3f}'.format(_) for _ in lst])

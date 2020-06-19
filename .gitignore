@@ -144,10 +144,10 @@ dmypy.json
 
 data/datasets
 data/best_model*
+data/checkpoints/cancer_fine_tuned
 preprocess.log
 visual_logs/
 models/
-trained_model/
 out*/
 *.xml
 *_in_bg.py

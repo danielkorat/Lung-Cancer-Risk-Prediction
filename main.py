@@ -214,10 +214,9 @@ def main(args):
     # Init model wrapper
     model = I3dForCTVolumes(args)
 
-    # Load pretrained weights
-    ckpt = join(args.data_dir, args.ckpt if args.inference else args.i3d_ckpt, 'model.ckpt')
-    print('\nINFO: Loading pre-trained model:', ckpt)
-    model.pretrained_saver.restore(model.sess, ckpt)
+    # Load pre-trained weights
+    pre_trained_ckpt = load_pretrained_ckpt(args.ckpt. args.data_dir)
+    model.pretrained_saver.restore(model.sess, pre_trained_ckpt)
 
     if args.inference:
         print('\nINFO: Begin Inference \n')
@@ -290,9 +289,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--device', default='GPU', type=str, help='the device to execute on')
 
-    parser.add_argument('--i3d_ckpt', default='checkpoints/inflated', type=str, help='path to previously saved model to load')
-
-    parser.add_argument('--ckpt', default='best_model', type=str, help='path to previously saved model to load')
+    parser.add_argument('--ckpt', default='cancer_fine_tuned', type=str, \
+        help="pre-trained weights to load. Either 'i3d_imagenet', 'cancer_fine_tuned' or a path to a directory containing model.ckpt file.")
 
     parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data', type=str, help='path to scan for cancer prediction')
 

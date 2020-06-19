@@ -9,3 +9,4 @@ scikit-image
 matplotlib
 scikit-plot
 seaborn
+gdown
