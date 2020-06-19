@@ -132,11 +132,11 @@ class I3dForCTVolumes:
 
     def predict(self, inference_data):
         errors_map = defaultdict(int)
-        volume_iterator = walk_np_files(inference_data) if self.args.is_preprocessed else walk_dicom_dirs(inference_data)
+        volume_iterator = walk_np_files(inference_data) if self.args.preprocessed else walk_dicom_dirs(inference_data)
         
         for i, volume_path in enumerate(volume_iterator):
             try:
-                if not self.args.is_preprocessed:
+                if not self.args.preprocessed:
                     print('\nINFO: Preprocessing volume...')
                     preprocessed, _ = preprocess(volume_path, errors_map, self.args.num_slices, self.slice_size, \
                         sample_volume=False, verbose=self.args.verbose)
@@ -146,11 +146,13 @@ class I3dForCTVolumes:
             except ValueError as e:
                 raise e
 
-            print('\nINFO: Predicting cancer for volume {}...', i)
+            print('\nINFO: Predicting cancer for volume no. {}...'.format(i))
             singleton_batch = [[preprocessed, None]]
             feed_dict, _ = self.process_data_into_to_dict(singleton_batch, is_paths=False)
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
+            print('\nINFO: Probability of cancer within 1 year: {}\n\n'.format(preds))
             print('\nINFO: Probability of cancer within 1 year: {}\n\n'.format(preds[0][0]))
+            print('\nINFO: Probability of cancer within 1 year: {:.5f}\n\n'.format(preds[0][0]))
 
     def process_data_into_to_dict(self, coupled_batch, is_paths=True, is_training=False):
         volumes = []
@@ -292,13 +294,13 @@ if __name__ == "__main__":
 
     parser.add_argument('--i3d_ckpt', default='checkpoints/inflated', type=str, help='path to previously saved model to load')
 
-    parser.add_argument('--ckpt', default='best_model_220', type=str, help='path to previously saved model to load')
+    parser.add_argument('--ckpt', default='best_model', type=str, help='path to previously saved model to load')
 
     parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data', type=str, help='path to scan for cancer prediction')
 
     parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
 
-    parser.add_argument('--is_preprocessed', default=False, type=bool, help='whether data for inference is preprocessed np files or raw DICOM dirs')
+    parser.add_argument('--preprocessed', default=False, type=bool, help='whether data for inference is preprocessed np files or raw DICOM dirs')
 
     parser.add_argument('--num_slices', default=220, type=int, help='number of slices (z dimension) used by the model')
 
