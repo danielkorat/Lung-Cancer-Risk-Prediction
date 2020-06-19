@@ -215,7 +215,7 @@ def main(args):
     model = I3dForCTVolumes(args)
 
     # Load pre-trained weights
-    pre_trained_ckpt = utils.load_pretrained_ckpt(args.ckpt. args.data_dir)
+    pre_trained_ckpt = utils.load_pretrained_ckpt(args.ckpt, args.data_dir)
     model.pretrained_saver.restore(model.sess, pre_trained_ckpt)
 
     if args.inference:
@@ -229,9 +229,9 @@ def main(args):
 
         save_dir, metrics_dir, plots_dir = create_output_dirs(args)
 
-        prefix = join(args.data_dir, 'lists', args.debug)
+        prefix = join(args.data_dir, 'lists', args.debug_list)
         train_list = utils.load_data_list(prefix + args.train)
-        val_list = utils.load_data_list(prefix + args.test)
+        val_list = utils.load_data_list(prefix + args.val)
         val_labels = utils.get_list_labels(val_list)
         utils.write_number_list(val_labels, join(metrics_dir, 'val_true'), verbose=args.verbose)
 
@@ -263,46 +263,38 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    ##################################################
-    EPOCHS = 80
-    BATCH = 2
-    DEBUG = ''
-    # DEBUG = '1_'
-    GPU = 0
-    ##################################################
+    parser.add_argument('--ckpt', default='cancer_fine_tuned', type=str, help="pre-trained weights to load. \
+        Either 'i3d_imagenet', 'cancer_fine_tuned' or a path to a directory containing model.ckpt file")
 
-    parser.add_argument('--epochs', default=EPOCHS, type=int,  help='the number of epochs')
-
-    parser.add_argument('--batch_size', default=BATCH, type=int, help='the training batch size')
-
-    parser.add_argument('--debug', default=DEBUG, type=str, help='prefix of debug train/val sets to run')
-
-    parser.add_argument('--gpu_id', default=GPU, type=int, help='gpu id')
-
-    parser.add_argument('--train', default='train.list', help='path to training data')
-
-    parser.add_argument('--test', default='test.list', help='path to training data')
-
-    parser.add_argument('--data_dir', default=str(dirname(realpath(__file__))) + '/data', help='path to training data')
-
-    parser.add_argument('--out_dir', default=str(dirname(realpath(__file__))) + '/out', help='path to output dir for models, metrics and plots')
-
-    parser.add_argument('--device', default='GPU', type=str, help='the device to execute on')
-
-    parser.add_argument('--ckpt', default='cancer_fine_tuned', type=str, \
-        help="pre-trained weights to load. Either 'i3d_imagenet', 'cancer_fine_tuned' or a path to a directory containing model.ckpt file.")
-
-    parser.add_argument('--inference', default='/home/daniel_nlp/Lung-Cancer-Risk-Prediction/sample_data', type=str, help='path to scan for cancer prediction')
-
-    parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
-
-    parser.add_argument('--preprocessed', default=False, type=bool, help='whether data for inference is preprocessed np files or raw DICOM dirs')
-
-    parser.add_argument('--num_slices', default=220, type=int, help='number of slices (z dimension) used by the model')
+    parser.add_argument('--epochs', default=40, type=int,  help='the number of epochs')
 
     parser.add_argument('--lr', default=0.00005, type=int, help='initial learning rate')
 
-    parser.add_argument('--keep_prob', default=1.0, type=int, help='dropout keep prob')
+    parser.add_argument('--keep_prob', default=0.7, type=int, help='dropout keep prob')
+
+    parser.add_argument('--batch_size', default=3, type=int, help='the batch size for training/validation')
+
+    parser.add_argument('--gpu_id', default=0, type=int, help='gpu id')
+
+    parser.add_argument('--train', default='train.list', help='path to train.list file')
+
+    parser.add_argument('--val', default='val.list', help='path to val.list file')
+
+    parser.add_argument('--data_dir', default=str(dirname(realpath(__file__))) + '/data', help='path to training data')
+
+    parser.add_argument('--out_dir', default=str(dirname(realpath(__file__))) + '/out', \
+        help='path to output dir for models, metrics and plots')
+
+    parser.add_argument('--device', default='GPU', type=str, help='the device to execute on')
+
+    parser.add_argument('--inference', default=None, type=str, help='path to volumes for cancer prediction')
+
+    parser.add_argument('--preprocessed', default=False, type=bool, help='whether data for inference is \
+        preprocessed (.npz files) or raw volumes (dirs of .dcm files)')
+
+    parser.add_argument('--num_slices', default=224, type=int, help='number of slices (z dimension) from the volume to be used by the model')
+
+    parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
 
     parser.set_defaults()
     main(parser.parse_args())

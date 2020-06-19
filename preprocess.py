@@ -273,7 +273,7 @@ def preprocess_all(input_dir, overwrite=False, num_slices=224, crop_size=224, vo
     print('Scans with small resampled z dimension: {}'.format(errors_map['small_z']))
     print((time.time() - start) / scans_num, 'sec/volume')
 
-def create_train_test_lists(positives, negatives, lists_dir, print_dirs=False, split_ratio=0.7):
+def create_train_val_lists(positives, negatives, lists_dir, print_dirs=False, split_ratio=0.7):
     positive_paths = []
     negative_paths = []
     
@@ -288,20 +288,20 @@ def create_train_test_lists(positives, negatives, lists_dir, print_dirs=False, s
         print('\n INFO:', 'volumes with label', label, len(path_list))
 
     train_list = []
-    test_list = []
+    val_list = []
     shuffle(positive_paths)
     split_pos = round(split_ratio * len(positive_paths))
     shuffle(negative_paths)
     split_neg = round(split_ratio * len(negative_paths))
     train_list = positive_paths[:split_pos] + negative_paths[:split_neg]
-    test_list = positive_paths[split_pos:] + negative_paths[split_neg:]
+    val_list = positive_paths[split_pos:] + negative_paths[split_neg:]
     shuffle(train_list)
-    shuffle(test_list)
+    shuffle(val_list)
 
     os.makedirs(lists_dir, exist_ok=True)
-    with open(lists_dir + '/test.list', 'w') as test_f:
-        for path, label in test_list:
-            test_f.write(path + ' ' + label + '\n')
+    with open(lists_dir + '/val.list', 'w') as val_f:
+        for path, label in val_list:
+            val_f.write(path + ' ' + label + '\n')
 
     with open(lists_dir + '/train.list', 'w') as train_f:
         for path, label in train_list:
@@ -311,8 +311,8 @@ if __name__ == "__main__":
     # Step 1: Preprocess all volumes, save them to '/path/to/dataset_preprocessed'
     preprocess_all('/path/to/dataset', overwrite=False)
     
-    # Step 2: Split preprocessed data into train/test .list files, containing coupled data (volume paths, labels)
-    create_train_test_lists(positives='/path/to/dataset_preprocessed/positives', 
+    # Step 2: Split preprocessed data into train/val .list files, containing coupled data (volume paths, labels)
+    create_train_val_lists(positives='/path/to/dataset_preprocessed/positives', 
                             negatives='/path/to/dataset_preprocessed/negatives', 
                             lists_dir='/path/to/write/lists',
                             split_ratio=0.7)

@@ -145,6 +145,7 @@ dmypy.json
 data/datasets
 data/best_model*
 data/checkpoints/cancer_fine_tuned
+data/checkpoints/__MACOSX*
 preprocess.log
 visual_logs/
 models/

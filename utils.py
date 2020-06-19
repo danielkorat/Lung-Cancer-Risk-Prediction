@@ -28,12 +28,15 @@ def load_pretrained_ckpt(ckpt, data_dir):
     return pre_trained_ckpt
 
 def download_fine_tuned_model(data_dir):
-    # url = 'https://drive.google.com/uc?id=0B9P1L--7Wd2vNm9zMTJWOGxobkU'
-    url = 'https://drive.google.com/file/d/1tXrooanNzpai0bU4rKZcwL9fKs2xggoh'
-    output = join(data_dir, 'checkpoints', 'cancer_fine_tuned.zip')
-    md5 = '9b6cd7a49bf56b25df56db9fc112eedb'
-    gdown.cached_download(url, output, md5=md5, postprocess=gdown.extractall)
-
+    if os.path.exists(join(data_dir, 'checkpoints', 'cancer_fine_tuned')):
+        print('\nINFO: Cancer fine-tuned model already downloaded.')
+    else:
+        print('\nINFO: Downloading cancer fine-tuned model...')
+        url = 'https://drive.google.com/uc?id=1rkHWXLBjaBx0bGoJ_GVcbDzrg4G-AubT'
+        zip_output = join(data_dir, 'checkpoints', 'cancer_fine_tuned.zip')
+        md5 = '9b6cd7a49bf56b25df56db9fc112eedb'
+        gdown.cached_download(url, zip_output, md5=md5, postprocess=gdown.extractall)
+        os.remove(zip_output)
 
 def pretty_print_floats(lst):
     return ',  '.join(['{:.3f}'.format(_) for _ in lst])

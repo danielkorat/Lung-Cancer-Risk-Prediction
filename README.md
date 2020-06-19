@@ -51,17 +51,19 @@ To save storage space, following preprocessing steps are performed online (durin
 
 ### Provided checkpoint
 
-The repository also includes a pre-trained checkpoint in `data/checkpoints`, which wastrained on a subset of NLST with 2,000 CT volumes. The model is pre-trained on ImageNet and then NLST for binary classification.
-The [ImageNet pre-trained Inception V1 model](http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz) is inflated to 3D and then fine-tuned on pathology-confirmed CTs from NLST. This checkpoint is initialized by bootstrapping the filters from a [2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D,
-as described in the paper.
+We also provide our cancer fine-tuned model for out-of-the box usage.
+By default, this model checkpoint is downloaded in `main.py` and the model is then initialized with its weights.
 
-The model is initialized by bootstrapping the filters from a [ImageNet pre-trained 2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D,
-as described in the paper.
-It is then trained on the preprocessed CT volumes to predict cancer within 1 year, fine-tuning from the pretrained checkpoint mentioned above. Each of these volumes was a large region cropped around the center of the bounding box, as determined by lung segmentation in the preprocessing stage. We use focal loss to try to mitigate the sparsity of positive examples.
+To train this model we first initialized by bootstrapping the filters from the [ImageNet pre-trained 2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D, as described in the paper.
+It was then fine-tuned on the preprocessed CT volumes to predict cancer within 1 year (binary classification), fine-tuning from the pretrained checkpoint mentioned above. Each of these volumes was a large region cropped around the center of the bounding box, as determined by lung segmentation in the preprocessing stage. We use focal loss to try to mitigate the sparsity of positive examples.
 
-We train using `tf.train.AdamOptimizer`. During training, we use ?.? dropout, with a
-minibatch size of 3. The optimizer uses learning rate of 1e-4, with and exponential decay rate of 0.1.
-We train the model for ???k steps (?? epochs).
+Due to limited storage and compute time, we trained our model on a small subset of NLST containing 1,045 volumes (34% positive).
+Nevertheless, we still achieved a high AUC score of 0.87 on a validation set of 448 volumes.
+This is rouhly comparable to the original paper's result of 0.89 AUC for the full-volume model (see the paper's supplemtary material),
+trained on 47,974 volumes (1.34% positive).
+We set the dropout keep_prob to 0.7, and trained in minibatches of size of 2 (due to limited GPU memory).
+We used `tf.train.AdamOptimizer` with a small learning rate of 5e-5 (without decay), due to the small batch size.
+We stopped the training before overfitting started around epoch 32.
 
 ### Acknowledgments
 
