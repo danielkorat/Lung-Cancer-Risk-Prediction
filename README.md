@@ -46,12 +46,12 @@ Each CT volume in NLST is a folder of DICOM files (one file per slice).
 The `preprocess.py` module accepts a directory `path/to/data` containing multiple CT volumes, performs several preprocessing steps, and writes each volume as an `.npz` file in `path/to/data_preprocssed`.
 The preprocessing steps include methods from [this](https://www.kaggle.com/gzuidhof/full-preprocessing-tutorial/notebook) tutorial and include:
 
-- Resampling to a 1.4mm voxel size (slow).
-- Coarse lung segmentation – used to compute lung center for alignment and reduction of problem space.
+- Resampling to a 1.5mm voxel size (slow)
+- Coarse lung segmentation – used to compute lung center for alignment and reduction of problem space
 
 To save storage space, the following preprocessing steps are performed online (during training/inference):
 
-- Windowing – clip pixel values to focus on lung volume.
+- Windowing – clip pixel values to focus on lung volume
 - RGB normalization
 
 ### Provided checkpoint
