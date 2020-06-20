@@ -272,7 +272,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--keep_prob', default=0.7, type=int, help='dropout keep prob')
 
-    parser.add_argument('--batch_size', default=3, type=int, help='the batch size for training/validation')
+    parser.add_argument('--batch_size', default=2, type=int, help='the batch size for training/validation')
 
     parser.add_argument('--gpu_id', default=0, type=int, help='gpu id')
 

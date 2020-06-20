@@ -142,6 +142,7 @@ dmypy.json
 
 *.log
 
+data/lists
 data/datasets
 data/best_model*
 data/checkpoints/cancer_fine_tuned
