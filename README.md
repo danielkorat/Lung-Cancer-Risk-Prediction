@@ -34,6 +34,11 @@ The `main.py` module contains training (fine-tuning) and inference procedures.
 The inputs are preprocessed CT volumes, as produced by `preprocess.py`.
 For usage example, refer to the arguments' description and default values in the bottom of `main.py`.
 
+For an example of running out-of-the box inference:  
+[[Notebook](https://github.com/danielkorat/Lung-Cancer-Risk-Prediction/blob/master/notebooks/inference.ipynb)]
+[[Colab](https://colab.research.google.com/drive/1nWFFiFI43W7aClax0fjR3OEepTAW5Opw?usp=sharing)]
+
+
 ### Data Preprocessing
 
 The `main.py` module operates only on preprocessed volumes, produced by `preprocess.py`.
@@ -44,24 +49,22 @@ The preprocessing steps include methods from [this](https://www.kaggle.com/gzuid
 - Resampling to a 1.4mm voxel size (slow).
 - Coarse lung segmentation – used to compute lung center for alignment and reduction of problem space.
 
-To save storage space, following preprocessing steps are performed online (during training/inference):
+To save storage space, the following preprocessing steps are performed online (during training/inference):
 
 - Windowing – clip pixel values to focus on lung volume.
 - RGB normalization
 
 ### Provided checkpoint
 
-By default, our cancer fine-tuned model checkpoint is downloaded in
+By default, our fine-tuned model checkpoint is downloaded in
 `main.py` and the model is then initialized with its weights.
+Due to limited storage and compute time, we trained on a small subset of NLST containing 1,045 volumes (34% positive). Nevertheless, we still achieved a very high AUC score of 0.876 on a validation set of 448 volumes.
+This is comparable to the original paper's result of 0.89 AUC for the full-volume model (see the paper's supplemtary material), trained on 47,974 volumes (1.34% positive).  
 
 To train this model we first initialized by bootstrapping the filters from the [ImageNet pre-trained 2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D, as described in the I3D paper.
 It was then fine-tuned on the preprocessed CT volumes to predict cancer within 1 year (binary classification). Each of these volumes was a large region cropped around the center of the bounding box, as determined by lung segmentation in the preprocessing step.
 
-Due to limited storage and compute time, we trained our model on a small subset of NLST containing 1,045 volumes (34% positive).
-Nevertheless, we still achieved a high AUC score of 0.876 on a validation set of 448 volumes.
-This is rouhly comparable to the original paper's result of 0.89 AUC for the full-volume model (see the paper's supplemtary material), trained on 47,974 volumes (1.34% positive).
-We set the dropout keep_prob to 0.7, and trained in minibatches of size of 2 (due to limited GPU memory).
-We used `tf.train.AdamOptimizer` with a small learning rate of 5e-5 (without decay), due to the small batch size.
+For the training setup, we set the dropout keep_prob to 0.7, and trained in mini-batches of size of 2 (due to limited GPU memory). We used `tf.train.AdamOptimizer` with a small learning rate of 5e-5 (without decay), due to the small batch size.
 We stopped the training before overfitting started around epoch 32.
 The focal loss function from the paper is provided in the code, but we did not experience improved results when using it, compared to cross-entropy loss which was used instead. This is most likely becuase our positive examples were not as sparse as in the paper.
 
