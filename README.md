@@ -73,9 +73,7 @@ The follwoing plots show loss, AUC, and accuracy progression during training, al
 <img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/loss.png" width="786" height="420">
 <img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/auc_and_accuracy.png" width="786" height="420">
 
-<img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_10.png" width="300" height="300">
-<img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_20.png" width="300" height="300">
-<img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_32.png" width="300" height="300">
+<img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_10.png" width="300" height="300"><img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_20.png" width="300" height="300"><img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_32.png" width="300" height="300">
 
 ### Acknowledgments
 
