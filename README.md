@@ -68,6 +68,13 @@ For the training setup, we set the dropout keep_prob to 0.7, and trained in mini
 We stopped the training before overfitting started around epoch 32.
 The focal loss function from the paper is provided in the code, but we did not experience improved results when using it, compared to cross-entropy loss which was used instead. This is most likely becuase our positive examples were not as sparse as in the paper.
 
+![Loss progression](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/loss.png)
+![AUC and accuracy progression](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/auc_and_accuracy.png)
+![AUC for epoch 10](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_10.png)
+![AUC for epoch 20](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_20.png)
+![AUC for epoch 32](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_32.png)
+
+
 ### Acknowledgments
 
 The author thanks the National Cancer Institute for access to NCI's data collected by the National Screening Trial (NLST).
