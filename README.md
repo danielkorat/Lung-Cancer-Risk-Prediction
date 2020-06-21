@@ -64,7 +64,7 @@ This is comparable to the original paper's result of 0.89 AUC for the full-volum
 To train this model we first initialized by bootstrapping the filters from the [ImageNet pre-trained 2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D, as described in the I3D paper.
 It was then fine-tuned on the preprocessed CT volumes to predict cancer within 1 year (binary classification). Each of these volumes was a large region cropped around the center of the bounding box, as determined by lung segmentation in the preprocessing step.
 
-For the training setup, we set the dropout keep_prob to 0.7, and trained in mini-batches of size of 2 (due to limited GPU memory). We used `tf.train.AdamOptimizer` with a small learning rate of 5e-5 (without decay), due to the small batch size.
+For the training setup, we set the dropout keep_prob to 0.7, and trained in mini-batches of size of 2 (due to limited GPU memory). We used `tf.train.AdamOptimizer` with a small learning rate of 5e-5, due to the small batch size. We also used a staircase exponential decay every 11 epochs, with a decay rate of 0.1. 
 We stopped the training before overfitting started around epoch 32.
 The focal loss function from the paper is provided in the code, but we did not experience improved results when using it, compared to cross-entropy loss which was used instead. This is most likely becuase our positive examples were not as sparse as in the paper.
 
