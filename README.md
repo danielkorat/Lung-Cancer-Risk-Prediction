@@ -19,6 +19,8 @@ We use the NLST dataset which contains chest LDCT volumes with pathology-confirm
 
 ![Example cases](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/example_cases.png)
 
+Sample data comes from the [LIDC-IDRI<sup>1</sup>](https://wiki.cancerimagingarchive.net/display/Public/LIDC-IDRI).
+
 ## Running the code
 
 ### Setup
@@ -79,3 +81,5 @@ The follwoing plots show loss, AUC, and accuracy progression during training, al
 
 The author thanks the National Cancer Institute for access to NCI's data collected by the National Screening Trial (NLST).
 The statements contained herein are solely those of the author and do not represent or imply concurrence or endorsement by NCI.
+
+<sup>1</sup> Armato III, SG; McLennan, G; Bidaut, L; McNitt-Gray, MF; Meyer, CR; Reeves, AP; Zhao, B; Aberle, DR; Henschke, CI; Hoffman, Eric A; Kazerooni, EA; MacMahon, H; van Beek, EJR; Yankelevitz, D; Biancardi, AM; Bland, PH; Brown, MS; Engelmann, RM; Laderach, GE; Max, D; Pais, RC; Qing, DPY; Roberts, RY; Smith, AR; Starkey, A; Batra, P; Caligiuri, P; Farooqi, Ali; Gladish, GW; Jude, CM; Munden, RF; Petkovska, I; Quint, LE; Schwartz, LH; Sundaram, B; Dodd, LE; Fenimore, C; Gur, D; Petrick, N; Freymann, J; Kirby, J; Hughes, B; Casteele, AV; Gupte, S; Sallam, M; Heath, MD; Kuhn, MH; Dharaiya, E; Burns, R; Fryd, DS; Salganicoff, M; Anand, V; Shreter, U; Vastagh, S; Croft, BY; Clarke, LP. (2015). Data From LIDC-IDRI. The Cancer Imaging Archive. http://doi.org/10.7937/K9/TCIA.2015.LO9QL9SX
