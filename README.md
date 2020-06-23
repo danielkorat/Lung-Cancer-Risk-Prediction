@@ -19,7 +19,7 @@ We use the NLST dataset which contains chest LDCT volumes with pathology-confirm
 
 ![Example cases](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/example_cases.png)
 
-Sample data comes from the [LIDC-IDRI<sup>1</sup>](https://wiki.cancerimagingarchive.net/display/Public/LIDC-IDRI).
+Sample data comes from the [Lung Image Database Consortium image collection (LIDC-IDRI)<sup>1</sup>](https://wiki.cancerimagingarchive.net/display/Public/LIDC-IDRI).
 
 ## Running the code
 
