@@ -6,18 +6,14 @@ with open("README.md") as fh:
 with open("requirements.txt") as fh:
     requirements = fh.readlines()
 
-    # [
-    #     "Django >= 1.1.1",
-    #     "caldav == 0.1.4",
-    # ]
-
 setuptools.setup(
     name="lungs",
-    version="0.1.0",
+    version="0.1.1",
     author="Daniel Korat",
     author_email="dkorat@gmail.com",
     description="3D Neural Network for Lung Cancer Risk Prediction on CT Volumes",
     long_description=long_description,
+    long_description_content_type = "text/markdown",
     url="https://github.com/danielkorat/Lung-Cancer-Risk-Prediction",
     packages=setuptools.find_packages(),
     install_requires=requirements,

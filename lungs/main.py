@@ -11,23 +11,23 @@ else:
 from random import shuffle
 import numpy as np
 import argparse
-from i3d import InceptionI3d
-from os.path import join, dirname, realpath
-from time import time
+from time import time, strftime
 from tqdm import tqdm
-from sklearn.metrics import roc_auc_score
-from preprocess import preprocess, walk_dicom_dirs, walk_np_files
-import utils
-from time import strftime
-from datetime import date
+from os.path import join, dirname, realpath
 from collections import defaultdict
+from sklearn.metrics import roc_auc_score
+from datetime import date
+
+from lungs.preprocess import preprocess, walk_dicom_dirs, walk_np_files
+from lungs import utils
+from lungs.i3d import InceptionI3d
 
 class I3dForCTVolumes:
     def __init__(self, args):
         self.args = args
 
         # This is the shape of both dimensions of each slice of the volume.
-        # The final volume shape fed to the model is [self.args.num_slices, 224, 224]
+        # The final volume shape fed to the model is [self.args['num_slices, 224, 224]
         self.slice_size = 224
 
         # pylint: disable=not-context-manager
@@ -41,20 +41,20 @@ class I3dForCTVolumes:
 
             # Placeholders
             self.volumes_placeholder, self.labels_placeholder, self.is_training_placeholder = utils.placeholder_inputs(
-                    num_slices=self.args.num_slices,
+                    num_slices=self.args['num_slices'],
                     crop_size=self.slice_size,
                     rgb_channels=3
                     )
             
             # Learning rate and optimizer
-            lr = tf.train.exponential_decay(self.args.lr, global_step, decay_steps=5000, decay_rate=0.1, staircase=True)
+            lr = tf.train.exponential_decay(self.args['lr'], global_step, decay_steps=5000, decay_rate=0.1, staircase=True)
             optimizer = tf.train.AdamOptimizer(lr)
 
             # Init I3D model
-            with tf.device('/device:' + self.args.device + ':0'):
+            with tf.device('/device:' + self.args['device'] + ':0'):
                 with tf.compat.v1.variable_scope('RGB'):
                     _, end_points = InceptionI3d(num_classes=2, final_endpoint='Predictions')\
-                        (self.volumes_placeholder, self.is_training_placeholder, dropout_keep_prob=args.keep_prob)
+                        (self.volumes_placeholder, self.is_training_placeholder, dropout_keep_prob=args['keep_prob'])
                 self.logits = end_points['Logits']
                 self.preds = end_points['Predictions']
 
@@ -93,17 +93,17 @@ class I3dForCTVolumes:
             self.sess.run(init)
 
     def train_loop(self, train_list, metrics_dir):
-        train_batches = utils.batcher(train_list, self.args.batch_size)
+        train_batches = utils.batcher(train_list, self.args['batch_size'])
         for coupled_batch in tqdm(train_batches):
             feed_dict, _ = self.process_data_into_to_dict(coupled_batch, is_training=True)
             self.sess.run(self.train_op, feed_dict=feed_dict)
 
         metrics = self.evaluate(train_list, ds='Train')
-        utils.write_number_list(metrics[-1], join(metrics_dir, 'tr_true'), verbose=self.args.verbose)
+        utils.write_number_list(metrics[-1], join(metrics_dir, 'tr_true'), verbose=self.args['verbose'])
         return metrics
 
     def evaluate(self, coupled_list, ds='Val.'):
-        coupled_batches = utils.batcher(coupled_list, self.args.batch_size)
+        coupled_batches = utils.batcher(coupled_list, self.args['batch_size'])
 
         loss_list, acc_list, preds_list, labels_list = [], [], [], []
         
@@ -116,7 +116,7 @@ class I3dForCTVolumes:
             preds_list.extend(preds)
             labels_list.extend(labels)
 
-        if self.args.verbose:
+        if self.args['verbose']:
             print('\nDEBUG: {}. Preds/Labels: {}'.format(ds, list(zip(preds_list, labels_list))))
             print('\nDEBUG: {} Batch accuracy/loss: {}'.format(ds, list(zip(acc_list, loss_list))))
 
@@ -132,14 +132,14 @@ class I3dForCTVolumes:
 
     def predict(self, inference_data):
         errors_map = defaultdict(int)
-        volume_iterator = walk_np_files(inference_data) if self.args.preprocessed else walk_dicom_dirs(inference_data)
+        volume_iterator = walk_np_files(inference_data) if self.args['preprocessed'] else walk_dicom_dirs(inference_data)
         
         for i, volume_path in enumerate(volume_iterator):
             try:
-                if not self.args.preprocessed:
+                if not self.args['preprocessed']:
                     print('\nINFO: Preprocessing volume...')
-                    preprocessed, _ = preprocess(volume_path, errors_map, self.args.num_slices, self.slice_size, \
-                        sample_volume=False, verbose=self.args.verbose)
+                    preprocessed, _ = preprocess(volume_path, errors_map, self.args['num_slices'], self.slice_size, \
+                        sample_volume=False, verbose=self.args['verbose'])
                 else:
                     preprocessed = self.load_np_volume(volume_path)
                     preprocessed = np.expand_dims(preprocessed, axis=0)
@@ -160,9 +160,9 @@ class I3dForCTVolumes:
                 if is_paths:
                     volume = self.load_np_volume(volume)
 
-                # Crop volume to shape [self.args.num_slices, 224, 224]
-                crop_start = volume.shape[0] // 2 - self.args.num_slices // 2
-                volume = volume[crop_start: crop_start + self.args.num_slices]
+                # Crop volume to shape [self.args['num_slices, 224, 224]
+                crop_start = volume.shape[0] // 2 - self.args['num_slices'] // 2
+                volume = volume[crop_start: crop_start + self.args['num_slices']]
                 volumes.append(volume)
 
                 if label is not None:
@@ -184,15 +184,15 @@ class I3dForCTVolumes:
 
     def load_np_volume(self, volume_file):
         if volume_file.endswith('.npz'):
-            scan_arr = np.load(join(self.args.data_dir, volume_file))['data']
+            scan_arr = np.load(join(self.args['data_dir'], volume_file))['data']
         else:
-            scan_arr = np.load(join(self.args.data_dir, volume_file)).astype(np.float32)
+            scan_arr = np.load(join(self.args['data_dir'], volume_file)).astype(np.float32)
         return scan_arr
 
 def create_output_dirs(args):
     # Create model dir and log dir if they doesn't exist
     timestamp = date.today().strftime("%A_") + strftime("%H:%M:%S")
-    out_dir_time = args.out_dir + '_' + timestamp
+    out_dir_time = args['out_dir'] + '_' + timestamp
 
     os.makedirs(out_dir_time, exist_ok=True)
     save_dir = join(out_dir_time, 'models')
@@ -208,34 +208,34 @@ def main(args):
     print('\nINFO: Initializing...')
 
     # Set GPU
-    if args.device == 'GPU':
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
+    if args['device'] == 'GPU':
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(args['gpu_id'])
 
     # Init model wrapper
     model = I3dForCTVolumes(args)
 
     # Load pre-trained weights
-    pre_trained_ckpt = utils.load_pretrained_ckpt(args.ckpt, args.data_dir)
+    pre_trained_ckpt = utils.load_pretrained_ckpt(args['ckpt'], args['data_dir'])
     model.pretrained_saver.restore(model.sess, pre_trained_ckpt)
 
-    if args.inference:
+    if args['input']:
         print('\nINFO: Begin Inference \n')
-        model.predict(args.inference)
+        model.predict(args['input'])
     else:
         print('\nINFO: Begin Training')
 
         print('\nINFO: Hyperparams:')
-        print('\n'.join([str(item) for item in vars(args).items()]))
+        print('\n'.join([str(item) for item in args.items()]))
 
         save_dir, metrics_dir, plots_dir = create_output_dirs(args)
 
-        train_list = utils.load_data_list(args.train)
-        val_list = utils.load_data_list(args.val)
+        train_list = utils.load_data_list(args['train'])
+        val_list = utils.load_data_list(args['val'])
         val_labels = utils.get_list_labels(val_list)
-        utils.write_number_list(val_labels, join(metrics_dir, 'val_true'), verbose=args.verbose)
+        utils.write_number_list(val_labels, join(metrics_dir, 'val_true'), verbose=args['verbose'])
 
         metrics = defaultdict(list)
-        for epoch in range(1, args.epochs + 1):
+        for epoch in range(1, args['epochs'] + 1):
             print('\nINFO: +++++++++++++++++++++ EPOCH {} +++++++++++++++++++++'.format(epoch))
             start_time = time()
             shuffle(train_list)
@@ -255,20 +255,47 @@ def main(args):
             print('\nINFO: Val duration: {:.2f} secs'.format(time() - train_end_time))
 
             print('\nINFO: Writing metrics plotting them...')
-            utils.write_metrics(metrics, tr_epoch_metrics, val_metrics, metrics_dir, epoch, verbose=args.verbose)
+            utils.write_metrics(metrics, tr_epoch_metrics, val_metrics, metrics_dir, epoch, verbose=args['verbose'])
             utils.plot_metrics(epoch, metrics_dir, plots_dir)
 
+def train(**kwargs):
+    '''
+    Run prediction. 
+    For arguments description, see General and Training sections in params() function below.
+    '''
+    final_kwargs = params()
+    # Override default parameters with given arguments
+    for key, value in kwargs.items():
+        final_kwargs[key] = value
+    main(final_kwargs)
 
-if __name__ == "__main__":
+def predict(**kwargs):
+    '''
+    Run prediction. 
+    For arguments description, see General and Inference sections in params() function below.
+    '''
+    final_kwargs = params()
+    # Override default parameters with given arguments
+    for key, value in kwargs.items():
+        final_kwargs[key] = value
+    main(final_kwargs)
+
+def params():
     parser = argparse.ArgumentParser()
-
-    root = dirname(realpath(__file__))
+    root = dirname(dirname(realpath(__file__)))
     lists_dir = join(root, 'data', 'lists')
 
+    ########################################   General parameters #########################################
     parser.add_argument('--ckpt', default='i3d_imagenet', type=str, help="pre-trained weights to load. \
         Either 'i3d_imagenet', 'cancer_fine_tuned' or a path to a directory containing model.ckpt file")
 
-    parser.add_argument('--epochs', default=50, type=int,  help='the number of epochs')
+    parser.add_argument('--num_slices', default=220, type=int, \
+        help='number of slices (z dimension) from the volume to be used by the model')
+
+    parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
+
+    ########################################   Training parameters ########################################
+    parser.add_argument('--epochs', default=40, type=int,  help='the number of epochs')
 
     parser.add_argument('--lr', default=0.0001, type=int, help='initial learning rate')
 
@@ -280,7 +307,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--device', default='GPU', type=str, help='the device to execute on')
 
-    parser.add_argument('--data_dir', default=join(root, 'data'), help='path to data directory (for raw/processed volumes, train/val lists, checkpoints etc.)')
+    parser.add_argument('--data_dir', default=join(root, 'data'), \
+        help='path to data directory (for raw/processed volumes, train/val lists, checkpoints etc.)')
 
     parser.add_argument('--train', default=join(lists_dir, 'train.list'), help='path to train data .list file')
 
@@ -288,14 +316,16 @@ if __name__ == "__main__":
 
     parser.add_argument('--out_dir', default=join(root, 'out'), help='path to output dir for models, metrics and plots')
 
-    parser.add_argument('--inference', default=None, type=str, help='path to volumes for cancer prediction')
+    ########################################   Inference parameters ########################################
+    parser.add_argument('--input', default=None, type=str, help='path to volumes for cancer prediction')
 
     parser.add_argument('--preprocessed', default=False, type=bool, help='whether data for inference is \
         preprocessed (.npz files) or raw volumes (dirs of .dcm files)')
 
-    parser.add_argument('--num_slices', default=220, type=int, help='number of slices (z dimension) from the volume to be used by the model')
-
-    parser.add_argument('--verbose', default=False, type=bool, help='whether to print detailed logs')
-
     parser.set_defaults()
-    main(parser.parse_args())
+    kwargs = vars(parser.parse_args())
+    return kwargs
+
+if __name__ == "__main__":
+    kwargs = params()
+    main(kwargs)

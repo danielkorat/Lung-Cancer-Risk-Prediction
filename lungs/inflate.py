@@ -1,8 +1,9 @@
 import tensorflow as tf
 import numpy as np
-import i3d
+# pylint: disable=no-name-in-module
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
+from lungs import i3d
 
 def assign(global_vars, model_path):
     reader = tf.pywrap_tensorflow.NewCheckpointReader(model_path)

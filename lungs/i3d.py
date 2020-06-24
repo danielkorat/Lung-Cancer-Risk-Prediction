@@ -27,8 +27,6 @@ from __future__ import print_function
 
 import sonnet as snt
 import tensorflow as tf
-
-
 class Unit3D(snt.AbstractModule):
   """Basic unit containing Conv3D + BatchNorm + non-linearity."""
 

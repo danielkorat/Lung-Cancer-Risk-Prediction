@@ -10,10 +10,11 @@ import gdown
 from sklearn.metrics import roc_auc_score, roc_curve
 import scikitplot as skplt
 import matplotlib.pyplot as plt
-import seaborn as sns
-sns.set_style("darkgrid")
 from matplotlib.pyplot import figure
 from os.path import join
+import seaborn as sns
+sns.set_style("darkgrid")
+
 
 def load_pretrained_ckpt(ckpt, data_dir):
     if ckpt == 'cancer_fine_tuned':
@@ -203,10 +204,8 @@ def focal_loss(logits, labels, alpha=0.75, gamma=2):
     return tf.reduce_mean(losses)
 
 def cross_entropy_loss(logits, labels):
-    # print('CE Loss variables:')
-    # print('labels:', labels)
-    # print('logits:', logits)
-    # print('logits.shape:', logits.shape)
+    # pylint: disable=no-value-for-parameter
+    # pylint: disable=unexpected-keyword-arg
     cross_entropy_mean = tf.reduce_mean(
                   tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits)
                   )

@@ -5,17 +5,15 @@ import pydicom as dicom
 import os
 from scipy import ndimage
 import matplotlib.pyplot as plt
-from utils import apply_window
 from pathlib import Path
 from skimage import measure
 from collections import defaultdict
 from sys import argv
 from random import shuffle
 
-
-# This pixel size/coarseness of the scan differs from scan to scan (e.g. the distance between slices may differ), which can hurt performance of 
+from lungs.utils import apply_window
+# The pixel size/coarseness of the scan differs from scan to scan (e.g. the distance between slices may differ), which can hurt performance of 
 # CNN approaches. We can deal with this by isomorphic resampling.
-# 
 # Below is code to load a scan, which consists of multiple slices, which we simply save in a Python list. Every folder in the dataset is one 
 # scan (so one patient). One metadata field is missing, the pixel size in the Z direction, which is the slice thickness. 
 # Fortunately we can infer this, and we add this to the metadata.
