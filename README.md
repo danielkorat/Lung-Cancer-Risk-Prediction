@@ -30,23 +30,35 @@ pip install lungs
 ### Running the code
 
 #### Inference
+
 Python example:
+
 ```python
-pip install lungs
+import lungs
+lungs.predict('path/to/data')
 ```
 
-Command line example:
+Command line example (with preprocessed data):
+
 ```bash
-pip install lungs
+python main.py --preprocessed --input path/to/preprocessed/data
 ```
 
 #### Training
+
+The inputs to the training procedure are training and validation `.list` files containing coupled data - a volume path and its label in each row.
+These `.list` files need to be generated beforehand using `preprocess.py`, as described in the next section.
+
 Python example:
+
 ```python
-pip install lungs
+import lungs
+# train with default hyperparameters
+lungs.train(train='path/to/train.list', val='path/to/val.list')
 ```
 
 Command line example:
+
 ```bash
 pip install lungs
 ```
@@ -55,17 +67,18 @@ Notebooks with full examples:
 [[Notebook](https://github.com/danielkorat/Lung-Cancer-Risk-Prediction/blob/master/notebooks/inference.ipynb)]
 [[Colab](https://colab.research.google.com/drive/1nWFFiFI43W7aClax0fjR3OEepTAW5Opw?usp=sharing)]
 
-
 The `main.py` module contains training (fine-tuning) and inference procedures.
 The inputs are preprocessed CT volumes, as produced by `preprocess.py`.
 For usage example, refer to the arguments' description and default values in the bottom of `main.py`.
 
 ### Data Preprocessing
 
-The `main.py` module operates only on preprocessed volumes, produced by `preprocess.py`.
-Each CT volume in NLST is a folder of DICOM files (one file per slice).
-The `preprocess.py` module accepts a directory `path/to/data` containing multiple CT volumes, performs several preprocessing steps, and writes each volume as an `.npz` file in `path/to/data_preprocssed`.
-The preprocessing steps include methods from [this](https://www.kaggle.com/gzuidhof/full-preprocessing-tutorial/notebook) tutorial and include:
+#### Preprocess volumes
+
+Each CT volume in NLST is a **directory** of DICOM files (each `.dcm` file is one slice of the CT).
+The `preprocess.py` module accepts a directory `path/to/data` containing **multiple** such directories (volumes).
+It performs several preprocessing steps, and writes each preprocessed volume as an `.npz` file in `path/to/data_preprocssed`.
+These steps are based on [this](https://www.kaggle.com/gzuidhof/full-preprocessing-tutorial/notebook) tutorial, and include:
 
 - Resampling to a 1.5mm voxel size (slow)
 - Coarse lung segmentation – used to compute lung center for alignment and reduction of problem space
@@ -75,11 +88,35 @@ To save storage space, the following preprocessing steps are performed online (d
 - Windowing – clip pixel values to focus on lung volume
 - RGB normalization
 
+Example usage:
+
+```python
+from lungs import preprocess
+# Step 1: Preprocess all volumes, will save them to '/path/to/dataset_preprocessed'
+preprocess.preprocess_all('/path/to/dataset')
+```
+
+#### Create train/val `.list` files
+
+Once the preprocessed data is ready, the next step is to split it randomly into train/val sets,
+and save each set as a `.list` file of paths/labels, required for the training procedure.
+
+Example usage:
+
+```python
+from lungs import preprocess
+# Step 2: Split preprocessed data into train/val coupled `.list` files
+preprocess.split(positives='/path/to/dataset_preprocessed/positives',
+                 negatives='/path/to/dataset_preprocessed/negatives',
+                 lists_dir='/path/to/write/lists',
+                 split_ratio=0.7)
+```
+
 ### Provided checkpoint
 
-By default, our fine-tuned model checkpoint is downloaded in
-`main.py` and the model is then initialized with its weights.
-Due to limited storage and compute time, we trained on a small subset of NLST containing 1,045 volumes (34% positive). Nevertheless, we still achieved a very high AUC score of 0.892 on a validation set of 448 volumes.
+By default, if the `ckpt` argument is not given, the model is initialized using our best fine-tuned checkpoint.
+Due to limited storage and compute time, our checkpoint was trained on a small subset of NLST containing 1,045 volumes (34% positive).
+Nevertheless, we still achieved a very high AUC score of 0.892 on a validation set of 448 volumes.
 This is comparable to the original paper's AUC for the full-volume model (see the paper's supplemtary material), trained on 47,974 volumes (1.34% positive).  
 
 To train this model we first initialized by bootstrapping the filters from the [ImageNet pre-trained 2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D, as described in the I3D paper.

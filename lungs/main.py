@@ -286,7 +286,7 @@ def params():
     lists_dir = join(root, 'data', 'lists')
 
     ########################################   General parameters #########################################
-    parser.add_argument('--ckpt', default='i3d_imagenet', type=str, help="pre-trained weights to load. \
+    parser.add_argument('--ckpt', default='cancer_fine_tuned', type=str, help="pre-trained weights to load. \
         Either 'i3d_imagenet', 'cancer_fine_tuned' or a path to a directory containing model.ckpt file")
 
     parser.add_argument('--num_slices', default=220, type=int, \

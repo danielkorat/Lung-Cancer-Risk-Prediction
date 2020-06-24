@@ -25,6 +25,14 @@ def assign(global_vars, model_path):
                 var_3d.assign(tf.convert_to_tensor(var_value.reshape(var_3d.get_shape())))
 
 def inflate_inception_v1_checkpoint_to_i3d(ckpt_2d, ckpt_3d, num_slices=145, volume_size=224, num_classes=2):
+    '''
+    Bootstrap the filters from a pre-trained two-dimensional 
+    Inception-v1 checkpoint into a three-dimensional I3D checkpoint.
+    
+    Usage example:
+    inflate_inception_v1_checkpoint_to_i3d('path/to/inception_v1.ckpt', 'path/to/new/i3d_model.ckpt')
+    '''
+
     rgb_input = tf.placeholder(tf.float32,
         shape=(1, num_slices, volume_size, volume_size, 3))
     with tf.variable_scope('RGB'):
@@ -39,7 +47,3 @@ def inflate_inception_v1_checkpoint_to_i3d(ckpt_2d, ckpt_3d, num_slices=145, vol
 
 def inspect_checkpoint(ckpt):
     print_tensors_in_checkpoint_file(ckpt, all_tensors=False, tensor_name='')
-
-if __name__ == "__main__":
-    # Usage example:
-    inflate_inception_v1_checkpoint_to_i3d('path/to/inception_v1.ckpt', 'path/to/new/i3d_model.ckpt')

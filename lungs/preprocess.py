@@ -271,7 +271,7 @@ def preprocess_all(input_dir, overwrite=False, num_slices=224, crop_size=224, vo
     print('Scans with small resampled z dimension: {}'.format(errors_map['small_z']))
     print((time.time() - start) / scans_num, 'sec/volume')
 
-def create_train_val_lists(positives, negatives, lists_dir, print_dirs=False, split_ratio=0.7):
+def split(positives, negatives, lists_dir, print_dirs=False, split_ratio=0.7):
     positive_paths = []
     negative_paths = []
     
@@ -304,13 +304,3 @@ def create_train_val_lists(positives, negatives, lists_dir, print_dirs=False, sp
     with open(lists_dir + '/train.list', 'w') as train_f:
         for path, label in train_list:
             train_f.write(path + ' ' + label + '\n')
-
-if __name__ == "__main__":
-    # Step 1: Preprocess all volumes, save them to '/path/to/dataset_preprocessed'
-    preprocess_all('/path/to/dataset', overwrite=False)
-    
-    # Step 2: Split preprocessed data into train/val .list files, containing coupled data (volume paths, labels)
-    create_train_val_lists(positives='/path/to/dataset_preprocessed/positives', 
-                            negatives='/path/to/dataset_preprocessed/negatives', 
-                            lists_dir='/path/to/write/lists',
-                            split_ratio=0.7)
