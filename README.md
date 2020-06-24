@@ -21,25 +21,44 @@ We use the NLST dataset which contains chest LDCT volumes with pathology-confirm
 
 Sample data comes from the [Lung Image Database Consortium image collection (LIDC-IDRI)<sup>1</sup>](https://wiki.cancerimagingarchive.net/display/Public/LIDC-IDRI).
 
-## Running the code
-
 ### Setup
 
 ```bash
-git clone https://github.com/danielkorat/Lung-Cancer-Risk-Prediction
-cd Lung-Cancer-Risk-Prediction
-pip install -U pip
-pip install -r requirements.txt
+pip install lungs
 ```
+
+### Running the code
+
+#### Inference
+Python example:
+```python
+pip install lungs
+```
+
+Command line example:
+```bash
+pip install lungs
+```
+
+#### Training
+Python example:
+```python
+pip install lungs
+```
+
+Command line example:
+```bash
+pip install lungs
+```
+
+Notebooks with full examples:  
+[[Notebook](https://github.com/danielkorat/Lung-Cancer-Risk-Prediction/blob/master/notebooks/inference.ipynb)]
+[[Colab](https://colab.research.google.com/drive/1nWFFiFI43W7aClax0fjR3OEepTAW5Opw?usp=sharing)]
+
 
 The `main.py` module contains training (fine-tuning) and inference procedures.
 The inputs are preprocessed CT volumes, as produced by `preprocess.py`.
 For usage example, refer to the arguments' description and default values in the bottom of `main.py`.
-
-For an example of running out-of-the box inference:  
-[[Notebook](https://github.com/danielkorat/Lung-Cancer-Risk-Prediction/blob/master/notebooks/inference.ipynb)]
-[[Colab](https://colab.research.google.com/drive/1nWFFiFI43W7aClax0fjR3OEepTAW5Opw?usp=sharing)]
-
 
 ### Data Preprocessing
 
