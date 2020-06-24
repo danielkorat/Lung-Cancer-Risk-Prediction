@@ -47,7 +47,7 @@ class I3dForCTVolumes:
                     )
             
             # Learning rate and optimizer
-            lr = tf.train.exponential_decay(self.args.lr, global_step, decay_steps=6000, decay_rate=0.1, staircase=True)
+            lr = tf.train.exponential_decay(self.args.lr, global_step, decay_steps=5000, decay_rate=0.1, staircase=True)
             optimizer = tf.train.AdamOptimizer(lr)
 
             # Init I3D model
@@ -270,9 +270,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--epochs', default=50, type=int,  help='the number of epochs')
 
-    parser.add_argument('--lr', default=0.00005, type=int, help='initial learning rate')
+    parser.add_argument('--lr', default=0.0001, type=int, help='initial learning rate')
 
-    parser.add_argument('--keep_prob', default=0.7, type=int, help='dropout keep prob')
+    parser.add_argument('--keep_prob', default=0.8, type=int, help='dropout keep prob')
 
     parser.add_argument('--batch_size', default=2, type=int, help='the batch size for training/validation')
 
