@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository contains an implementation of the "full-volume" model from the paper:  
+This repository contains my implementation of the "full-volume" model from the paper:  
 
 [End-to-end lung cancer screening with three-dimensional deep learning on low-dose chest computed tomography.](https://doi.org/10.1038/s41591-019-0447-x)<br/> Ardila, D., Kiraly, A.P., Bharadwaj, S. et al. Nat Med 25, 954–961 (2019).
 
