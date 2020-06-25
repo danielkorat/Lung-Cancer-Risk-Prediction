@@ -142,11 +142,7 @@ dmypy.json
 
 *.log
 
-lungs/data/lists
-lungs/data/datasets
-lungs/data/best_model*
-lungs/data/checkpoints/cancer_fine_tuned
-lungs/data/checkpoints/__MACOSX*
+data/
 preprocess.log
 visual_logs/
 models/

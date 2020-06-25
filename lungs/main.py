@@ -17,6 +17,7 @@ from os.path import join, dirname, realpath
 from collections import defaultdict
 from sklearn.metrics import roc_auc_score
 from datetime import date
+from pathlib import Path
 
 from lungs.preprocess import preprocess, walk_dicom_dirs, walk_np_files
 from lungs import utils
@@ -131,6 +132,9 @@ class I3dForCTVolumes:
         return mean_loss, mean_acc, auc_score, preds_list, labels_list
 
     def predict(self, inference_data):
+        if inference_data == 'sample_data':
+            inference_data = join(dirname(realpath(__file__)), 'sample_data')
+
         errors_map = defaultdict(int)
         volume_iterator = walk_np_files(inference_data) if self.args['preprocessed'] else walk_dicom_dirs(inference_data)
         
@@ -192,16 +196,16 @@ class I3dForCTVolumes:
 def create_output_dirs(args):
     # Create model dir and log dir if they doesn't exist
     timestamp = date.today().strftime("%A_") + strftime("%H:%M:%S")
-    out_dir_time = args['out_dir'] + '_' + timestamp
+    out_dir_time = Path(str(args['out_dir']) + '_' + timestamp)
+    save_dir = out_dir_time / 'models'
+    metrics_dir = out_dir_time / 'metrics'
+    val_preds_dir = metrics_dir / 'val_preds'
+    tr_preds_dir = metrics_dir / 'tr_preds'
+    plots_dir = out_dir_time / 'plots'
 
-    os.makedirs(out_dir_time, exist_ok=True)
-    save_dir = join(out_dir_time, 'models')
-    metrics_dir = join(out_dir_time, 'metrics')
-    plots_dir = join(out_dir_time, 'plots')
-    os.makedirs(save_dir, exist_ok=True)
-    os.makedirs(join(metrics_dir, 'val_preds'), exist_ok=True)
-    os.makedirs(join(metrics_dir, 'tr_preds'), exist_ok=True)
-    os.makedirs(plots_dir, exist_ok=True)
+    for new_dir in out_dir_time, save_dir, val_preds_dir, tr_preds_dir, plots_dir:
+        os.makedirs(new_dir, exist_ok=True)
+
     return save_dir, metrics_dir, plots_dir
 
 def main(args):
@@ -282,8 +286,10 @@ def predict(**kwargs):
 
 def params():
     parser = argparse.ArgumentParser()
-    root = dirname(dirname(realpath(__file__)))
-    lists_dir = join(root, 'data', 'lists')
+
+    default_out_dir = Path.home() / 'Lung-Cancer-Risk-Prediction' / 'out'
+    default_data_dir = Path.home() / 'Lung-Cancer-Risk-Prediction' / 'data'
+    lists_dir = default_data_dir / 'lists'
 
     ########################################   General parameters #########################################
     parser.add_argument('--ckpt', default='cancer_fine_tuned', type=str, help="pre-trained weights to load. \
@@ -307,17 +313,17 @@ def params():
 
     parser.add_argument('--device', default='GPU', type=str, help='the device to execute on')
 
-    parser.add_argument('--data_dir', default=join(root, 'data'), \
+    parser.add_argument('--data_dir', default=default_data_dir, \
         help='path to data directory (for raw/processed volumes, train/val lists, checkpoints etc.)')
 
-    parser.add_argument('--train', default=join(lists_dir, 'train.list'), help='path to train data .list file')
+    parser.add_argument('--train', default=lists_dir / 'train.list', help='path to train data .list file')
 
-    parser.add_argument('--val', default=join(lists_dir, 'val.list'), help='path to validation data .list file')
+    parser.add_argument('--val', default=lists_dir / 'val.list', help='path to validation data .list file')
 
-    parser.add_argument('--out_dir', default=join(root, 'out'), help='path to output dir for models, metrics and plots')
+    parser.add_argument('--out_dir', default=default_out_dir, help='path to output dir for models, metrics and plots')
 
     ########################################   Inference parameters ########################################
-    parser.add_argument('--input', default=None, type=str, help='path to volumes for cancer prediction')
+    parser.add_argument('--input', default=None, type=str, help="path to volumes for cancer prediction or 'sample_data' to use included CT samples.")
 
     parser.add_argument('--preprocessed', default=False, type=bool, help='whether data for inference is \
         preprocessed (.npz files) or raw volumes (dirs of .dcm files)')

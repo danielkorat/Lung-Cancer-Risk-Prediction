@@ -15,10 +15,14 @@ from os.path import join
 import seaborn as sns
 sns.set_style("darkgrid")
 
+REMOTE_CKPTS = {
+    'cancer_fine_tuned': {'url': '1Zc8KdEz9JUfkT1ZsG9ELYReUPbVapbQC', 'md5': 'cd5271617e090859f73a727da81cc2e3'},
+    'i3d_imagenet': {'url': '1FMWHGFYPjuvpgzkGm-_gYKdXpmv5fOq2',  'md5': 'f1408b50e5871153516fe87932121745'}
+}
 
 def load_pretrained_ckpt(ckpt, data_dir):
-    if ckpt == 'cancer_fine_tuned':
-        download_fine_tuned_model(data_dir)
+    if ckpt in REMOTE_CKPTS:
+        download_ckpt(data_dir, ckpt, REMOTE_CKPTS[ckpt])
 
     # Load a pre-defined ckpt or a ckpt from path
     predefined = join(data_dir, 'checkpoints', ckpt)
@@ -28,14 +32,14 @@ def load_pretrained_ckpt(ckpt, data_dir):
     print('\nINFO: Loading pre-trained model:', pre_trained_ckpt)
     return pre_trained_ckpt
 
-def download_fine_tuned_model(data_dir):
-    if os.path.exists(join(data_dir, 'checkpoints', 'cancer_fine_tuned')):
-        print('\nINFO: Cancer fine-tuned model already downloaded.')
+def download_ckpt(data_dir, name, download_info):
+    if os.path.exists(join(data_dir, 'checkpoints', name)):
+        print('\nINFO: {} model already downloaded.'.format(name))
     else:
-        print('\nINFO: Downloading cancer fine-tuned model...')
-        url = 'https://drive.google.com/uc?id=1Zc8KdEz9JUfkT1ZsG9ELYReUPbVapbQC'
-        zip_output = join(data_dir, 'checkpoints', 'cancer_fine_tuned.zip')
-        md5 = 'cd5271617e090859f73a727da81cc2e3'
+        print('\nINFO: Downloading {} model...'.format(name))
+        url = 'https://drive.google.com/uc?id=' + download_info['url']
+        zip_output = join(data_dir, 'checkpoints', name + '.zip')
+        md5 = download_info['md5']
         gdown.cached_download(url, zip_output, md5=md5, postprocess=gdown.extractall, quiet=True)
         os.remove(zip_output)
 
