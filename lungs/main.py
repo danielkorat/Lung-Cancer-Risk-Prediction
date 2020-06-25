@@ -329,7 +329,8 @@ def params():
         preprocessed (.npz files) or raw volumes (dirs of .dcm files)')
 
     parser.set_defaults()
-    kwargs = vars(parser.parse_args())
+    args, _ = parser.parse_known_args()
+    kwargs = vars(args)
     return kwargs
 
 if __name__ == "__main__":
