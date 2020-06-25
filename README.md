@@ -29,6 +29,10 @@ pip install lungs
 
 ### Running the code
 
+**See this notebook for full examples:**
+[[**Notebook**](https://github.com/danielkorat/Lung-Cancer-Risk-Prediction/blob/master/notebooks/inference.ipynb)]
+[[**Colab**](https://colab.research.google.com/drive/1nWFFiFI43W7aClax0fjR3OEepTAW5Opw?usp=sharing)]
+
 #### Inference
 
 Python example:
