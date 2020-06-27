@@ -12,15 +12,27 @@ from sys import argv
 from random import shuffle
 
 from lungs.utils import apply_window
+
+
 # The pixel size/coarseness of the scan differs from scan to scan (e.g. the distance between slices may differ), which can hurt performance of 
 # CNN approaches. We can deal with this by isomorphic resampling.
 # Below is code to load a scan, which consists of multiple slices, which we simply save in a Python list. Every folder in the dataset is one 
 # scan (so one patient). One metadata field is missing, the pixel size in the Z direction, which is the slice thickness. 
 # Fortunately we can infer this, and we add this to the metadata.
 
+def is_dcm_file(path):
+    name, ext = os.path.splitext(path)
+    # DICOM file extension
+    if 'dcm' in ext:
+        return True
+    # NLST file format
+    if name.isdigit() and not ext:
+        return True
+    return False
+
 # Load a volume from the given folder path
 def load_scan(path):
-    slices = [dicom.read_file(path + '/' + s) for s in os.listdir(path) if os.path.splitext(s)[0].isdigit() or 'dcm' in os.path.splitext(s)[1]]
+    slices = [dicom.read_file(path + '/' + scan) for scan in os.listdir(path) if is_dcm_file(scan)]
     slices.sort(key = lambda x: float(x.ImagePositionPatient[2]))
 
     if not slices[0].SliceThickness:

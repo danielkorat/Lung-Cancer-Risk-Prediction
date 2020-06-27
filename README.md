@@ -19,8 +19,6 @@ We use the NLST dataset which contains chest LDCT volumes with pathology-confirm
 
 ![Example cases](https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/example_cases.png)
 
-Sample data comes from the [Lung Image Database Consortium image collection (LIDC-IDRI)<sup>1</sup>](https://wiki.cancerimagingarchive.net/display/Public/LIDC-IDRI).
-
 ### Setup
 
 ```bash
@@ -28,10 +26,6 @@ pip install lungs
 ```
 
 ### Running the code
-
-**See this notebook for full examples:**
-<!---[[**Notebook**](https://github.com/danielkorat/Lung-Cancer-Risk-Prediction/blob/master/notebooks/inference.ipynb)]--->
-[[**Colab**](https://colab.research.google.com/drive/1nWFFiFI43W7aClax0fjR3OEepTAW5Opw?usp=sharing)]
 
 #### Inference
 
@@ -106,7 +100,15 @@ preprocess.split(positives='/path/to/dataset_preprocessed/positives',
 
 By default, if the `ckpt` argument is not given, the model is initialized using our best fine-tuned checkpoint.
 Due to limited storage and compute time, our checkpoint was trained on a small subset of NLST containing 1,045 volumes (34% positive).
-Nevertheless, we still achieved a very high AUC score of 0.892 on a validation set of 448 volumes.
+
+**Note that in order to obtain a general purpose prediction model, one would have to train on the full NLST dataset. Steps include:**
+
+- Gainng access to the [NLST dataset](https://biometry.nci.nih.gov/cdas/learn/nlst/images/)
+- Downloading ~6TB of positive and negative volumes (requires storage and a few days for downloading)
+- Preprocessing (see Data Preprocessing section above)
+- Training (requires a capable GPU)
+
+Even though we used a samll subset of NLST, we still achieved a state-of-the-art AUC score of 0.892 on a validation set of 448 volumes.
 This is comparable to the original paper's AUC for the full-volume model (see the paper's supplemtary material), trained on 47,974 volumes (1.34% positive).  
 
 To train this model we first initialized by bootstrapping the filters from the [ImageNet pre-trained 2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D, as described in the I3D paper.
@@ -126,5 +128,3 @@ The follwoing plots show loss, AUC, and accuracy progression during training, al
 
 The author thanks the National Cancer Institute for access to NCI's data collected by the National Screening Trial (NLST).
 The statements contained herein are solely those of the author and do not represent or imply concurrence or endorsement by NCI.
-
-<sup>1</sup> Armato III, SG; McLennan, G; Bidaut, L; McNitt-Gray, MF; Meyer, CR; Reeves, AP; Zhao, B; Aberle, DR; Henschke, CI; Hoffman, Eric A; Kazerooni, EA; MacMahon, H; van Beek, EJR; Yankelevitz, D; Biancardi, AM; Bland, PH; Brown, MS; Engelmann, RM; Laderach, GE; Max, D; Pais, RC; Qing, DPY; Roberts, RY; Smith, AR; Starkey, A; Batra, P; Caligiuri, P; Farooqi, Ali; Gladish, GW; Jude, CM; Munden, RF; Petkovska, I; Quint, LE; Schwartz, LH; Sundaram, B; Dodd, LE; Fenimore, C; Gur, D; Petrick, N; Freymann, J; Kirby, J; Hughes, B; Casteele, AV; Gupte, S; Sallam, M; Heath, MD; Kuhn, MH; Dharaiya, E; Burns, R; Fryd, DS; Salganicoff, M; Anand, V; Shreter, U; Vastagh, S; Croft, BY; Clarke, LP. (2015). Data From LIDC-IDRI. The Cancer Imaging Archive. http://doi.org/10.7937/K9/TCIA.2015.LO9QL9SX

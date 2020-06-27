@@ -132,9 +132,6 @@ class I3dForCTVolumes:
         return mean_loss, mean_acc, auc_score, preds_list, labels_list
 
     def predict(self, inference_data):
-        if inference_data == 'sample_data':
-            inference_data = join(dirname(realpath(__file__)), 'sample_data')
-
         errors_map = defaultdict(int)
         volume_iterator = walk_np_files(inference_data) if self.args['preprocessed'] else walk_dicom_dirs(inference_data)
         
@@ -146,25 +143,25 @@ class I3dForCTVolumes:
                         sample_volume=False, verbose=self.args['verbose'])
                 else:
                     preprocessed = self.load_np_volume(volume_path)
-                    preprocessed = np.expand_dims(preprocessed, axis=0)
+                    # preprocessed = np.expand_dims(preprocessed, axis=0)
             except ValueError as e:
                 raise e
 
             print('\nINFO: Predicting cancer for volume no. {}...'.format(i + 1))
             singleton_batch = [[preprocessed, None]]
-            feed_dict, _ = self.process_data_into_to_dict(singleton_batch, is_paths=False)
+            feed_dict, _ = self.process_data_into_to_dict(singleton_batch, from_paths=False)
             preds = self.sess.run([self.get_preds], feed_dict=feed_dict)
             print('\nINFO: Probability of cancer within 1 year: {:.5f}\n\n'.format(preds[0][0]))
 
-    def process_data_into_to_dict(self, coupled_batch, is_paths=True, is_training=False):
+    def process_data_into_to_dict(self, coupled_batch, from_paths=True, is_training=False):
         volumes = []
         labels = []
         for volume, label in coupled_batch:
             try:
-                if is_paths:
+                if from_paths:
                     volume = self.load_np_volume(volume)
 
-                # Crop volume to shape [self.args['num_slices, 224, 224]
+                # Crop volume to shape (self.args['num_slices'], 224, 224)
                 crop_start = volume.shape[0] // 2 - self.args['num_slices'] // 2
                 volume = volume[crop_start: crop_start + self.args['num_slices']]
                 volumes.append(volume)
@@ -175,8 +172,8 @@ class I3dForCTVolumes:
                 print('\nERROR! Could not load:', volume)
 
         # Perform windowing online volume, to save storage space of preprocessed volumes
-        volume_batch = np.array(volumes)
-        volume_batch = utils.apply_window(volume_batch)
+        volumes = np.array(volumes)
+        volume_batch = utils.apply_window(volumes)
 
         if labels:
             labels_np = np.array(labels).astype(np.int64)
@@ -323,9 +320,9 @@ def params():
     parser.add_argument('--out_dir', default=default_out_dir, help='path to output dir for models, metrics and plots')
 
     ########################################   Inference parameters ########################################
-    parser.add_argument('--input', default='sample_data', type=str, help="path to volumes for cancer prediction or 'sample_data' to use included CT samples.")
+    parser.add_argument('--input', default=None, type=str, help="path to directory of volumes for cancer prediction.")
 
-    parser.add_argument('--preprocessed', default=True, type=bool, help='whether data for inference is \
+    parser.add_argument('--preprocessed', default=False, type=bool, help='whether data for inference is \
         preprocessed (.npz files) or raw volumes (dirs of .dcm files)')
 
     parser.set_defaults()
