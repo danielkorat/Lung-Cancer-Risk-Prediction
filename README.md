@@ -29,16 +29,18 @@ pip install lungs
 
 ### Running the code
 
-#### Inference
+**See this notebook for full examples:**
+<!---[[**Notebook**](https://github.com/danielkorat/Lung-Cancer-Risk-Prediction/blob/master/notebooks/inference.ipynb)]--->
+[[**Colab**](https://colab.research.google.com/drive/1nWFFiFI43W7aClax0fjR3OEepTAW5Opw?usp=sharing)]
 
-Python example:
+#### Inference
 
 ```python
 import lungs
 lungs.predict('path/to/data')
 ```
 
-Command line example (with preprocessed data):
+From command line (with preprocessed data):
 
 ```bash
 python main.py --preprocessed --input path/to/preprocessed/data
@@ -49,23 +51,11 @@ python main.py --preprocessed --input path/to/preprocessed/data
 The inputs to the training procedure are training and validation `.list` files containing coupled data - a volume path and its label in each row.
 These `.list` files need to be generated beforehand using `preprocess.py`, as described in the next section.
 
-Python example:
-
 ```python
 import lungs
 # train with default hyperparameters
 lungs.train(train='path/to/train.list', val='path/to/val.list')
 ```
-
-Command line example:
-
-```bash
-pip install lungs
-```
-
-Notebooks with full examples:  
-[[Notebook](https://github.com/danielkorat/Lung-Cancer-Risk-Prediction/blob/master/notebooks/inference.ipynb)]
-[[Colab](https://colab.research.google.com/drive/1nWFFiFI43W7aClax0fjR3OEepTAW5Opw?usp=sharing)]
 
 The `main.py` module contains training (fine-tuning) and inference procedures.
 The inputs are preprocessed CT volumes, as produced by `preprocess.py`.
