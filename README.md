@@ -104,7 +104,7 @@ Due to limited storage and compute time, our checkpoint was trained on a small s
 **Note that in order to obtain a general purpose prediction model, one would have to train on the full NLST dataset. Steps include:**
 
 - Gainng access to the [NLST dataset](https://biometry.nci.nih.gov/cdas/learn/nlst/images/)
-- Downloading ~6TB of positive and negative volumes (requires storage and a few days for downloading)
+- Downloading<sup>1</sup> ~6TB of positive and negative volumes (requires storage and a few days for downloading)
 - Preprocessing (see Data Preprocessing section above)
 - Training (requires a capable GPU)
 
@@ -128,3 +128,11 @@ The follwoing plots show loss, AUC, and accuracy progression during training, al
 
 The author thanks the National Cancer Institute for access to NCI's data collected by the National Screening Trial (NLST).
 The statements contained herein are solely those of the author and do not represent or imply concurrence or endorsement by NCI.
+
+<sup>1</sup> Downloading volumes is done by querying the TCIA website (instruction on NCI website). We used the following query filters:
+
+ - `LungCancerDiagnosis.conflc == "Confirmed.."` (positive) or `"Confirmed Not..."` (negative)
+ - `SCTImageInfo.numberimages >= 130` (minimum number of slices)
+ - `SCTImageInfo.reconthickness < 5.0` (maximum slice thickness)
+ - `ScreeningResults.study_yr = x` (study year of volume, a number between 0 and 7)
+ - `LungCancerDiagnosis.cancyr = x` or `x + 1` (for positives: study year of patient's cancer diagnosis is equal to `study_yr` or 1 year later)
