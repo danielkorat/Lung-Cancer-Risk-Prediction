@@ -323,9 +323,9 @@ def params():
     parser.add_argument('--out_dir', default=default_out_dir, help='path to output dir for models, metrics and plots')
 
     ########################################   Inference parameters ########################################
-    parser.add_argument('--input', default=None, type=str, help="path to volumes for cancer prediction or 'sample_data' to use included CT samples.")
+    parser.add_argument('--input', default='sample_data', type=str, help="path to volumes for cancer prediction or 'sample_data' to use included CT samples.")
 
-    parser.add_argument('--preprocessed', default=False, type=bool, help='whether data for inference is \
+    parser.add_argument('--preprocessed', default=True, type=bool, help='whether data for inference is \
         preprocessed (.npz files) or raw volumes (dirs of .dcm files)')
 
     parser.set_defaults()
