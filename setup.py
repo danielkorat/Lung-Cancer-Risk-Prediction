@@ -8,7 +8,7 @@ with open("requirements.txt") as fh:
 
 setuptools.setup(
     name="lungs",
-    version="0.1.3",
+    version="0.1.4",
     author="Daniel Korat",
     author_email="dkorat@gmail.com",
     description="3D Neural Network for Lung Cancer Risk Prediction on CT Volumes",
