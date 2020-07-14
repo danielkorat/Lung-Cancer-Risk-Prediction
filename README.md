@@ -103,7 +103,7 @@ Due to limited storage and compute time, our checkpoint was trained on a small s
 
 **Note that in order to obtain a general purpose prediction model, one would have to train on the full NLST dataset. Steps include:**
 
-- Gainng access to the [NLST dataset](https://biometry.nci.nih.gov/cdas/learn/nlst/images/)
+- Gaining access to the [NLST dataset](https://biometry.nci.nih.gov/cdas/learn/nlst/images/)
 - Downloading<sup>1</sup> ~6TB of positive and negative volumes (requires storage and a few days for downloading)
 - Preprocessing (see Data Preprocessing section above)
 - Training (requires a capable GPU)
