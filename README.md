@@ -1,5 +1,7 @@
 # 3D Neural Network for Lung Cancer Risk Prediction on CT Volumes
 
+[![DOI](https://zenodo.org/badge/247760110.svg)](https://zenodo.org/badge/latestdoi/247760110)
+
 ## Overview
 
 This repository contains my implementation of the "full-volume" model from the paper:  
