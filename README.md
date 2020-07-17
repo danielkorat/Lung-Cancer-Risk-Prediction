@@ -126,19 +126,6 @@ The follwoing plots show loss, AUC, and accuracy progression during training, al
 
 <img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_10.png" width="270" height="270"><img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_20.png" width="270" height="270"><img src="https://raw.githubusercontent.com/danielkorat/Lung-Cancer-Risk-Prediction/master/figures/epoch_32.png" width="270" height="270">
 
-### Acknowledgments
-
-The author thanks the National Cancer Institute for access to NCI's data collected by the National Screening Trial (NLST).
-The statements contained herein are solely those of the author and do not represent or imply concurrence or endorsement by NCI.
-
-<sup>1</sup> Downloading volumes is done by querying the TCIA website (instruction on NCI website). We used the following query filters:
-
- - `LungCancerDiagnosis.conflc == "Confirmed.."` (positive) or `"Confirmed Not..."` (negative)
- - `SCTImageInfo.numberimages >= 130` (minimum number of slices)
- - `SCTImageInfo.reconthickness < 5.0` (maximum slice thickness)
- - `ScreeningResults.study_yr = x` (study year of volume, a number between 0 and 7)
- - `LungCancerDiagnosis.cancyr = x` or `x + 1` (for positives: study year of patient's cancer diagnosis is equal to `study_yr` or 1 year later)
-
 ### Citation
 
 ```bibtex
@@ -153,3 +140,16 @@ The statements contained herein are solely those of the author and do not repres
   url          = {https://doi.org/10.5281/zenodo.3950478}
 }
 ```
+
+### Acknowledgments
+
+The author thanks the National Cancer Institute for access to NCI's data collected by the National Screening Trial (NLST).
+The statements contained herein are solely those of the author and do not represent or imply concurrence or endorsement by NCI.
+
+<sup>1</sup> Downloading volumes is done by querying the TCIA website (instruction on NCI website). We used the following query filters:
+
+ - `LungCancerDiagnosis.conflc == "Confirmed.."` (positive) or `"Confirmed Not..."` (negative)
+ - `SCTImageInfo.numberimages >= 130` (minimum number of slices)
+ - `SCTImageInfo.reconthickness < 5.0` (maximum slice thickness)
+ - `ScreeningResults.study_yr = x` (study year of volume, a number between 0 and 7)
+ - `LungCancerDiagnosis.cancyr = x` or `x + 1` (for positives: study year of patient's cancer diagnosis is equal to `study_yr` or 1 year later)
