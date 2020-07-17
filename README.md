@@ -138,3 +138,19 @@ The statements contained herein are solely those of the author and do not repres
  - `SCTImageInfo.reconthickness < 5.0` (maximum slice thickness)
  - `ScreeningResults.study_yr = x` (study year of volume, a number between 0 and 7)
  - `LungCancerDiagnosis.cancyr = x` or `x + 1` (for positives: study year of patient's cancer diagnosis is equal to `study_yr` or 1 year later)
+
+### Citation
+
+```bibtex
+@software{daniel_korat_2020_3950478,
+  author       = {Daniel Korat},
+  title        = {{3D Neural Network for Lung Cancer Risk Prediction 
+                   on CT Volumes}},
+  month        = jul,
+  year         = 2020,
+  publisher    = {Zenodo},
+  version      = {v1.0},
+  doi          = {10.5281/zenodo.3950478},
+  url          = {https://doi.org/10.5281/zenodo.3950478}
+}
+```
