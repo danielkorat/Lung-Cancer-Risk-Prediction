@@ -144,8 +144,7 @@ The statements contained herein are solely those of the author and do not repres
 ```bibtex
 @software{korat-lung-cancer-pred,
   author       = {Daniel Korat},
-  title        = {{3D Neural Network for Lung Cancer Risk Prediction 
-                   on CT Volumes}},
+  title        = {{3D Neural Network for Lung Cancer Risk Prediction on CT Volumes}},
   month        = jul,
   year         = 2020,
   publisher    = {Zenodo},
