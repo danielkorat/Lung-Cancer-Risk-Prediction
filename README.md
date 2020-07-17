@@ -142,7 +142,7 @@ The statements contained herein are solely those of the author and do not repres
 ### Citation
 
 ```bibtex
-@software{daniel_korat_2020_3950478,
+@software{korat-lung-cancer-pred,
   author       = {Daniel Korat},
   title        = {{3D Neural Network for Lung Cancer Risk Prediction 
                    on CT Volumes}},
