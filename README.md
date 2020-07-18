@@ -110,8 +110,8 @@ Due to limited storage and compute time, our checkpoint was trained on a small s
 - Preprocessing (see Data Preprocessing section above)
 - Training (requires a capable GPU)
 
-Even though we used a samll subset of NLST, we still achieved a state-of-the-art AUC score of 0.892 on a validation set of 448 volumes.
-This is comparable to the original paper's AUC for the full-volume model (see the paper's supplemtary material), trained on 47,974 volumes (1.34% positive).  
+Even though we used a small subset of NLST, we still achieved a state-of-the-art AUC score of 0.892 on a validation set of 448 volumes.
+This is comparable to the original paper's AUC for the full-volume model (see the paper's supplementary material), trained on 47,974 volumes (1.34% positive).  
 
 To train this model we first initialized by bootstrapping the filters from the [ImageNet pre-trained 2D Inception-v1 model]((http://download.tensorflow.org/models/inception_v1_2016_08_28.tar.gz)) into 3D, as described in the I3D paper.
 It was then fine-tuned on the preprocessed CT volumes to predict cancer within 1 year (binary classification). Each of these volumes was a large region cropped around the center of the bounding box, as determined by lung segmentation in the preprocessing step.
