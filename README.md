@@ -1,8 +1,8 @@
 # 3D Neural Network for Lung Cancer Risk Prediction on CT Volumes
 
-[![DOI](https://zenodo.org/badge/247760110.svg)](https://zenodo.org/badge/latestdoi/247760110)
+[![DOI](https://zenodo.org/badge/247760110.svg)](https://doi.org/10.5281/zenodo.3950478)
 
-## Overview
+### Overview
 
 This repository contains my implementation of the "full-volume" model from the paper:  
 
@@ -15,9 +15,12 @@ volumes with pathology-confirmed cancer as training data.
 The CNN architecture is an Inflated 3D ConvNet (I3D) ([Carreira and
 Zisserman](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadis_Action_CVPR_2017_paper.html)).
 
-## Overview Video
+### High-level Presentation
 
-[![Overview Presentation](http://img.youtube.com/vi/KPBEpc_yDRk/0.jpg)](http://www.youtube.com/watch?v=KPBEpc_yDRk)
+[![Presentation](http://img.youtube.com/vi/KPBEpc_yDRk/0.jpg)](http://www.youtube.com/watch?v=KPBEpc_yDRk)
+
+### Paper
+For more detailed information, see this [report](https://arxiv.org/search/?searchtype=author&query=Korat%2C+D) on arXiv.
 
 ### Data
 
@@ -157,3 +160,9 @@ The statements contained herein are solely those of the author and do not repres
  - `SCTImageInfo.reconthickness < 5.0` (maximum slice thickness)
  - `ScreeningResults.study_yr = x` (study year of volume, a number between 0 and 7)
  - `LungCancerDiagnosis.cancyr = x` or `x + 1` (for positives: study year of patient's cancer diagnosis is equal to `study_yr` or 1 year later)
+ 
+ ### All Links
+[arXiv Publication](https://arxiv.org/search/?searchtype=author&query=Korat%2C+D).
+[Presentation Video](http://www.youtube.com/watch?v=KPBEpc_yDRk)
+[Presentation PDF](https://drive.google.com/file/d/1Wya9drNmXwdwWiwzeoKxgHmQ3r19Xa6Q/view?usp=sharing)
+DOI: [https://doi.org/10.5281/zenodo.3950478](https://doi.org/10.5281/zenodo.3950478)
