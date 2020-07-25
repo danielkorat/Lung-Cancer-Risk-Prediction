@@ -162,8 +162,9 @@ The statements contained herein are solely those of the author and do not repres
  - `LungCancerDiagnosis.cancyr = x` or `x + 1` (for positives: study year of patient's cancer diagnosis is equal to `study_yr` or 1 year later)
  
  ### All Links
- 
-[arXiv Publication](https://arxiv.org/search/?searchtype=author&query=Korat%2C+D)  
+
+[GitHub Pages](https://danielkorat.github.io/Lung-Cancer-Risk-Prediction)
+[arXiv Report](https://arxiv.org/search/?searchtype=author&query=Korat%2C+D)  
 [Presentation Video](http://www.youtube.com/watch?v=KPBEpc_yDRk)  
 [Presentation PDF](https://drive.google.com/file/d/1Wya9drNmXwdwWiwzeoKxgHmQ3r19Xa6Q/view?usp=sharing)  
 DOI: [https://doi.org/10.5281/zenodo.3950478](https://doi.org/10.5281/zenodo.3950478)  
