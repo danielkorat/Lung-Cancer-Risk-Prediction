@@ -1,6 +1,8 @@
 # 3D Neural Network for Lung Cancer Risk Prediction on CT Volumes
 
+<!---
 [![DOI](https://zenodo.org/badge/247760110.svg)](https://doi.org/10.5281/zenodo.3950478)
+-->
 
 ### Overview
 
