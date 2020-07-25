@@ -17,7 +17,9 @@ Zisserman](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadi
 
 ## Overview Video
 
-[![Overview Presentation](http://img.youtube.com/vi/KPBEpc_yDRk/0.jpg)](http://www.youtube.com/watch?v=KPBEpc_yDRk "")
+[![Overview Presentation](http://img.youtube.com/vi/KPBEpc_yDRk/0.jpg)](http://www.youtube.com/watch?v=KPBEpc_yDRk)
+
+[<img src="http://img.youtube.com/vi/KPBEpc_yDRk/0.jpg">](http://www.youtube.com/watch?v=KPBEpc_yDRk)
 
 ### Data
 
