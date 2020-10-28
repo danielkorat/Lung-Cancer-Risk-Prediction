@@ -22,7 +22,7 @@ Zisserman](http://openaccess.thecvf.com/content_cvpr_2017/html/Carreira_Quo_Vadi
 [![Presentation](http://img.youtube.com/vi/KPBEpc_yDRk/0.jpg)](http://www.youtube.com/watch?v=KPBEpc_yDRk)
 
 ### Detailed Report
-For more detailed information, see this [report](https://arxiv.org/search/?searchtype=author&query=Korat%2C+D) on arXiv.
+For more detailed information, see this [report](https://arxiv.org/abs/2007.12898) on arXiv.
 
 ### Data
 
